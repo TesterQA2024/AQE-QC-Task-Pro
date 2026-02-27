@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AQE Digital — QC Task Pro</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* ════════════════════════════════════════════════
+   CSS VARIABLES — DARK & LIGHT THEMES
+════════════════════════════════════════════════ */
+:root {
+  --bg:        #090b10;
+  --bg2:       #0d1018;
+  --surface:   #111620;
+  --surface2:  #181e2e;
+  --surface3:  #1e2538;
+  --border:    rgba(255,255,255,0.07);
+  --border2:   rgba(255,255,255,0.12);
+  --text:      #e4e8f4;
+  --text2:     #8892a4;
+  --text3:     #5a6275;
+  --gold:      #d4a843;
+  --gold2:     #f0cb70;
+  --gold-glow: rgba(212,168,67,0.15);
+  --pending:   #e8914a;
+  --ongoing:   #4a9de8;
+  --done:      #3ecf8e;
+  --danger:    #e8496a;
+  --radius:    14px;
+  --shadow:    0 20px 60px rgba(0,0,0,0.6);
+  --tr: .2s ease;
+}
+[data-theme="light"] {
+  --bg:        #f0f2f8;
+  --bg2:       #e8eaf4;
+  --surface:   #ffffff;
+  --surface2:  #f5f6fc;
+  --surface3:  #eceef8;
+  --border:    rgba(0,0,0,0.08);
+  --border2:   rgba(0,0,0,0.14);
+  --text:      #1a1d2e;
+  --text2:     #5a6275;
+  --text3:     #9aa0b4;
+  --gold-glow: rgba(212,168,67,0.1);
+  --shadow:    0 20px 60px rgba(0,0,0,0.1);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height:100vh;
+  transition: background var(--tr), color var(--tr);
+  overflow-x:hidden;
+}
+
+/* noise */
+body::after {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:9998;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  opacity:.02;
+}
+
+/* ════════════════════════════════════════════════
+   LOGIN
+════════════════════════════════════════════════ */
+#loginPage {
+  display:flex; align-items:center; justify-content:center;
+  min-height:100vh;
+  background: radial-gradient(ellipse 100% 70% at 50% -10%, rgba(212,168,67,0.12) 0%, transparent 60%), var(--bg);
+}
+
+.login-wrap {
+  width:100%; max-width:460px; padding:20px;
+  animation: riseUp .55s cubic-bezier(.22,1,.36,1) both;
+}
+
+@keyframes riseUp {
+  from { opacity:0; transform:translateY(30px) scale(.97); }
+  to   { opacity:1; transform:translateY(0) scale(1); }
+}
+
+.login-brand {
+  text-align:center; margin-bottom:32px;
+}
+.login-brand-badge {
+  display:inline-flex; align-items:center; gap:10px;
+  background: var(--surface); border:1px solid var(--border2);
+  border-radius:40px; padding:8px 20px 8px 10px;
+  margin-bottom:20px;
+}
+.login-brand-icon {
+  width:38px; height:38px; border-radius:50%;
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  display:grid; place-items:center; font-size:18px;
+}
+.login-brand-name {
+  font-family:'Syne',sans-serif; font-size:15px; font-weight:700;
+  letter-spacing:.03em;
+  background:linear-gradient(135deg,var(--gold),var(--gold2));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+}
+.login-h { font-family:'Syne',sans-serif; font-size:32px; font-weight:800; margin-bottom:8px; }
+.login-sub { color:var(--text2); font-size:14px; }
+
+.login-card {
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-radius:22px;
+  padding:44px 40px 40px;
+  box-shadow: var(--shadow), 0 0 0 1px rgba(212,168,67,0.06);
+}
+
+.lf { margin-bottom:18px; }
+.lf label {
+  display:block; font-size:11px; font-weight:600;
+  letter-spacing:.07em; text-transform:uppercase;
+  color:var(--text2); margin-bottom:8px;
+}
+.lf .input-wrap { position:relative; }
+.lf input {
+  width:100%; padding:13px 42px 13px 16px;
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:10px; color:var(--text);
+  font-family:'DM Sans',sans-serif; font-size:14px;
+  outline:none; transition:var(--tr);
+}
+.lf input:focus { border-color:var(--gold); box-shadow:0 0 0 3px var(--gold-glow); }
+.eye-btn {
+  position:absolute; right:12px; top:50%; transform:translateY(-50%);
+  background:none; border:none; color:var(--text3); cursor:pointer;
+  font-size:16px; padding:4px; transition:var(--tr);
+}
+.eye-btn:hover { color:var(--text); }
+
+.login-err {
+  display:none; margin-top:0; margin-bottom:16px;
+  padding:11px 16px;
+  background:rgba(232,73,106,0.1); border:1px solid rgba(232,73,106,0.25);
+  border-radius:8px; color:#ff6b88; font-size:13px;
+}
+
+.login-submit {
+  width:100%; padding:14px;
+  background:linear-gradient(135deg,var(--gold),var(--gold2));
+  border:none; border-radius:10px; cursor:pointer;
+  font-family:'Syne',sans-serif; font-size:15px; font-weight:700;
+  color:#0a0c10; transition:var(--tr); margin-top:4px;
+  letter-spacing:.03em;
+}
+.login-submit:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(212,168,67,0.35); }
+
+/* ════════════════════════════════════════════════
+   LAYOUT
+════════════════════════════════════════════════ */
+#app { display:none; min-height:100vh; }
+
+.sidebar {
+  position:fixed; left:0; top:0; bottom:0; width:258px;
+  background:var(--surface); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; z-index:200;
+  transition:transform .3s ease, background var(--tr), border-color var(--tr);
+}
+
+.sidebar-head {
+  padding:22px 20px 18px;
+  border-bottom:1px solid var(--border);
+}
+.brand-row { display:flex; align-items:center; gap:10px; }
+.brand-icon {
+  width:36px; height:36px; border-radius:10px;
+  background:linear-gradient(135deg,var(--gold),var(--gold2));
+  display:grid; place-items:center; font-size:16px; flex-shrink:0;
+}
+.brand-text { font-family:'Syne',sans-serif; font-size:13px; font-weight:800; line-height:1.2; }
+.brand-text span {
+  display:block; background:linear-gradient(135deg,var(--gold),var(--gold2));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+}
+.brand-sub { font-size:10px; color:var(--text3); font-weight:400; letter-spacing:.05em; margin-top:2px; }
+
+.nav-scroll { flex:1; overflow-y:auto; padding:16px 12px; }
+.nav-scroll::-webkit-scrollbar { width:4px; }
+.nav-scroll::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+
+.nav-grp { margin-bottom:20px; }
+.nav-grp-label {
+  font-size:10px; font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--text3); padding:0 8px; margin-bottom:6px;
+}
+.nav-item {
+  display:flex; align-items:center; gap:9px;
+  padding:9px 10px; border-radius:10px; cursor:pointer;
+  transition:var(--tr); font-size:13.5px; font-weight:500; color:var(--text2);
+  margin-bottom:2px;
+}
+.nav-item:hover { background:var(--surface2); color:var(--text); }
+.nav-item.active {
+  background: linear-gradient(90deg, var(--gold-glow), transparent);
+  color:var(--gold);
+  border-left:2px solid var(--gold);
+  padding-left:8px;
+}
+.nav-ico { font-size:15px; width:20px; text-align:center; }
+.nav-badge {
+  margin-left:auto; font-size:11px; font-weight:600;
+  padding:2px 7px; border-radius:10px;
+}
+.nb-all  { background:rgba(255,255,255,0.07); color:var(--text2); }
+.nb-p    { background:rgba(232,145,74,0.15); color:var(--pending); }
+.nb-o    { background:rgba(74,157,232,0.15); color:var(--ongoing); }
+.nb-d    { background:rgba(62,207,142,0.15); color:var(--done); }
+
+.sidebar-foot {
+  padding:14px 12px;
+  border-top:1px solid var(--border);
+}
+.user-row {
+  display:flex; align-items:center; gap:9px;
+  padding:10px; border-radius:10px; background:var(--surface2);
+}
+.user-av {
+  width:34px; height:34px; border-radius:50%;
+  background:linear-gradient(135deg,var(--gold),var(--gold2));
+  display:grid; place-items:center;
+  font-family:'Syne',sans-serif; font-size:15px; font-weight:700; color:#0a0c10;
+  flex-shrink:0;
+}
+.user-info { flex:1; min-width:0; }
+.user-name { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.user-role { font-size:11px; color:var(--text3); }
+.logout-btn {
+  background:none; border:none; color:var(--text3); cursor:pointer;
+  font-size:15px; padding:5px; border-radius:6px; transition:var(--tr);
+}
+.logout-btn:hover { color:var(--danger); background:rgba(232,73,106,0.1); }
+
+/* ════════════════════════════════════════════════
+   MAIN
+════════════════════════════════════════════════ */
+.main { margin-left:258px; min-height:100vh; transition:.3s; }
+
+.topbar {
+  position:sticky; top:0; z-index:100;
+  display:flex; align-items:center; gap:12px;
+  padding:16px 28px;
+  background:var(--bg); border-bottom:1px solid var(--border);
+  backdrop-filter:blur(12px);
+  transition:background var(--tr);
+}
+.topbar-left { flex:1; display:flex; align-items:center; gap:12px; }
+.menu-btn {
+  display:none; background:none; border:none;
+  color:var(--text2); font-size:20px; cursor:pointer; padding:4px;
+}
+.page-title { font-family:'Syne',sans-serif; font-size:20px; font-weight:700; }
+
+/* THEME TOGGLE */
+.theme-toggle {
+  display:flex; align-items:center;
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:30px; padding:4px; gap:2px;
+}
+.theme-btn {
+  padding:6px 12px; border-radius:24px; border:none;
+  background:transparent; cursor:pointer;
+  font-size:13px; font-weight:500; color:var(--text3);
+  transition:var(--tr);
+}
+.theme-btn.active {
+  background:var(--surface); color:var(--text);
+  box-shadow:0 2px 8px rgba(0,0,0,0.2);
+}
+
+.topbar-actions { display:flex; align-items:center; gap:10px; }
+
+.ver-sel {
+  padding:8px 14px; background:var(--surface2);
+  border:1px solid var(--border); border-radius:9px;
+  color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px;
+  outline:none; cursor:pointer; transition:var(--tr);
+}
+.ver-sel:focus { border-color:var(--gold); }
+
+.btn-primary {
+  display:inline-flex; align-items:center; gap:7px;
+  padding:9px 18px; border-radius:9px; border:none;
+  background:linear-gradient(135deg,var(--gold),var(--gold2));
+  color:#0a0c10; font-family:'Syne',sans-serif; font-size:13px; font-weight:700;
+  cursor:pointer; transition:var(--tr); white-space:nowrap;
+}
+.btn-primary:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(212,168,67,0.3); }
+
+/* ════════════════════════════════════════════════
+   PAGE CONTENT
+════════════════════════════════════════════════ */
+.page { display:none; padding:28px; animation:fadeIn .3s ease both; }
+.page.active { display:block; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+/* STATS */
+.stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:28px; }
+.stat {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); padding:22px 20px; position:relative; overflow:hidden;
+  animation: riseUp .4s ease both;
+}
+.stat::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:var(--radius) var(--radius) 0 0;
+}
+.stat.s1::before { background:linear-gradient(90deg,var(--gold),var(--gold2)); }
+.stat.s2::before { background:linear-gradient(90deg,#e8914a,#f0a868); }
+.stat.s3::before { background:linear-gradient(90deg,#4a9de8,#68b8f0); }
+.stat.s4::before { background:linear-gradient(90deg,#3ecf8e,#60e0a8); }
+.stat-ico { font-size:22px; margin-bottom:12px; }
+.stat-n { font-family:'Syne',sans-serif; font-size:38px; font-weight:800; line-height:1; margin-bottom:4px; }
+.stat.s1 .stat-n { color:var(--gold); }
+.stat.s2 .stat-n { color:var(--pending); }
+.stat.s3 .stat-n { color:var(--ongoing); }
+.stat.s4 .stat-n { color:var(--done); }
+.stat-lbl { font-size:12px; color:var(--text2); font-weight:500; }
+
+/* FILTER ROW */
+.filter-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+.fbtn {
+  padding:7px 16px; border-radius:8px;
+  border:1px solid var(--border); background:var(--surface);
+  color:var(--text2); font-family:'DM Sans',sans-serif; font-size:13px;
+  font-weight:500; cursor:pointer; transition:var(--tr);
+}
+.fbtn:hover { background:var(--surface2); color:var(--text); }
+.fbtn.active { border-color:var(--gold); color:var(--gold); background:var(--gold-glow); }
+.search-inp {
+  margin-left:auto; padding:8px 14px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:9px; color:var(--text); font-family:'DM Sans',sans-serif;
+  font-size:13px; outline:none; width:210px; transition:var(--tr);
+}
+.search-inp::placeholder { color:var(--text3); }
+.search-inp:focus { border-color:var(--gold); }
+
+/* TABLE */
+.tbl-wrap {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); overflow:hidden;
+  animation: riseUp .4s .1s ease both;
+}
+table { width:100%; border-collapse:collapse; }
+thead tr { background:var(--surface2); border-bottom:1px solid var(--border); }
+th {
+  padding:12px 18px; text-align:left;
+  font-size:10.5px; font-weight:600; letter-spacing:.07em;
+  text-transform:uppercase; color:var(--text3); white-space:nowrap;
+}
+tbody tr {
+  border-bottom:1px solid var(--border); transition:var(--tr);
+}
+tbody tr:last-child { border-bottom:none; }
+tbody tr:hover { background:rgba(255,255,255,0.015); }
+td { padding:14px 18px; font-size:13.5px; vertical-align:middle; }
+
+/* STATUS PILLS */
+.spl {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:4px 11px; border-radius:20px; font-size:11.5px; font-weight:600;
+}
+.spl::before { content:''; width:5px; height:5px; border-radius:50%; }
+.spl-pending   { background:rgba(232,145,74,0.12); color:var(--pending); }
+.spl-pending::before { background:var(--pending); }
+.spl-ongoing   { background:rgba(74,157,232,0.12); color:var(--ongoing); }
+.spl-ongoing::before { background:var(--ongoing); }
+.spl-completed { background:rgba(62,207,142,0.12); color:var(--done); }
+.spl-completed::before { background:var(--done); }
+
+/* PRIORITY */
+.ppl { display:inline-block; padding:3px 9px; border-radius:6px; font-size:11px; font-weight:600; }
+.ppl-high   { background:rgba(232,73,106,0.1); color:#ff6b88; }
+.ppl-medium { background:rgba(240,200,48,0.1); color:#f0c830; }
+.ppl-low    { background:rgba(100,200,120,0.1); color:#70c888; }
+
+/* VER TAG */
+.vtag {
+  background:var(--gold-glow); color:var(--gold);
+  padding:3px 9px; border-radius:6px; font-size:11px; font-weight:600;
+}
+
+/* ACTION BTNS */
+.actb { display:flex; gap:5px; }
+.ab {
+  width:30px; height:30px; border-radius:7px;
+  border:1px solid var(--border); background:var(--surface2);
+  color:var(--text3); font-size:13px; cursor:pointer;
+  display:grid; place-items:center; transition:var(--tr);
+}
+.ab:hover { color:var(--text); background:var(--surface3); }
+.ab.del:hover { color:var(--danger); border-color:rgba(232,73,106,0.3); background:rgba(232,73,106,0.08); }
+.ab.ok:hover  { color:var(--done);   border-color:rgba(62,207,142,0.3); background:rgba(62,207,142,0.08); }
+
+/* EMPTY */
+.empty { text-align:center; padding:56px 20px; }
+.empty-ico { font-size:44px; margin-bottom:14px; opacity:.35; }
+.empty-t { font-size:15px; font-weight:500; color:var(--text2); }
+.empty-s { font-size:12px; color:var(--text3); margin-top:5px; }
+
+/* TASK INFO */
+.task-main { font-weight:500; font-size:13.5px; }
+.task-sub  { font-size:11.5px; color:var(--text3); margin-top:2px; }
+
+/* ════════════════════════════════════════════════
+   PROJECT SHEET MODULE
+════════════════════════════════════════════════ */
+.ps-header {
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:12px; margin-bottom:24px;
+}
+.ps-title { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; }
+.ps-sub   { font-size:13px; color:var(--text2); margin-top:3px; }
+.ps-actions { display:flex; gap:10px; flex-wrap:wrap; }
+
+.btn-sec {
+  display:inline-flex; align-items:center; gap:7px;
+  padding:9px 16px; border-radius:9px;
+  border:1px solid var(--border2); background:var(--surface);
+  color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500;
+  cursor:pointer; transition:var(--tr);
+}
+.btn-sec:hover { background:var(--surface2); border-color:var(--gold); color:var(--gold); }
+
+/* GSHEET LINK */
+.gsheet-bar {
+  display:flex; align-items:center; gap:10px;
+  padding:14px 18px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); margin-bottom:20px;
+}
+.gsheet-ico { font-size:22px; flex-shrink:0; }
+.gsheet-inp {
+  flex:1; background:transparent; border:none;
+  color:var(--text); font-family:'DM Sans',sans-serif; font-size:13.5px;
+  outline:none;
+}
+.gsheet-inp::placeholder { color:var(--text3); }
+.gsheet-link-btn {
+  padding:7px 14px; border-radius:7px;
+  background:linear-gradient(135deg,#34a853,#5ec876);
+  border:none; color:#fff; font-size:12px; font-weight:600;
+  cursor:pointer; transition:var(--tr); white-space:nowrap;
+}
+.gsheet-link-btn:hover { transform:translateY(-1px); box-shadow:0 4px 14px rgba(52,168,83,0.3); }
+
+/* PS STATS */
+.ps-stats { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:24px; }
+.pss {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); padding:18px 16px; text-align:center;
+}
+.pss-n { font-family:'Syne',sans-serif; font-size:28px; font-weight:800; }
+.pss-l { font-size:11px; color:var(--text2); margin-top:4px; font-weight:500; }
+.pss.c1 .pss-n { color:var(--ongoing); }
+.pss.c2 .pss-n { color:var(--done); }
+.pss.c3 .pss-n { color:var(--pending); }
+.pss.c4 .pss-n { color:var(--text2); }
+.pss.c5 .pss-n { color:var(--gold); }
+
+/* DROP ZONE */
+.drop-zone {
+  border:2px dashed var(--border2); border-radius:var(--radius);
+  padding:40px 20px; text-align:center;
+  cursor:pointer; transition:var(--tr); margin-bottom:20px;
+}
+.drop-zone:hover, .drop-zone.drag { border-color:var(--gold); background:var(--gold-glow); }
+.drop-ico { font-size:36px; margin-bottom:10px; }
+.drop-t { font-size:15px; font-weight:500; margin-bottom:4px; }
+.drop-s { font-size:12px; color:var(--text3); }
+#excelInput { display:none; }
+
+/* PROJECT TABLE */
+.zoho-link {
+  color:var(--ongoing); font-size:12px; text-decoration:none;
+  display:inline-flex; align-items:center; gap:4px;
+  padding:3px 8px; border-radius:5px;
+  background:rgba(74,157,232,0.1); border:1px solid rgba(74,157,232,0.2);
+  transition:var(--tr);
+}
+.zoho-link:hover { background:rgba(74,157,232,0.2); }
+
+.bug-cell { text-align:center; }
+.bug-num { font-family:'Syne',sans-serif; font-size:15px; font-weight:700; }
+
+/* STATUS SELECT IN TABLE */
+.inline-sel {
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:6px; color:var(--text); font-family:'DM Sans',sans-serif;
+  font-size:12px; padding:3px 8px; cursor:pointer; outline:none;
+  transition:var(--tr);
+}
+.inline-sel:focus { border-color:var(--gold); }
+
+/* ════════════════════════════════════════════════
+   MODAL
+════════════════════════════════════════════════ */
+.ov {
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.65); backdrop-filter:blur(10px);
+  z-index:500; display:none; align-items:center; justify-content:center; padding:16px;
+}
+.ov.open { display:flex; }
+
+.modal {
+  width:100%; max-width:580px;
+  background:var(--surface); border:1px solid var(--border2);
+  border-radius:20px; padding:36px;
+  box-shadow:0 40px 120px rgba(0,0,0,0.7);
+  animation:riseUp .25s ease;
+  max-height:90vh; overflow-y:auto;
+}
+.modal::-webkit-scrollbar { width:4px; }
+.modal::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+
+.modal-hd {
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:26px;
+}
+.modal-title { font-family:'Syne',sans-serif; font-size:20px; font-weight:800; }
+.modal-x {
+  width:34px; height:34px; border-radius:8px;
+  border:1px solid var(--border); background:none;
+  color:var(--text2); font-size:16px; cursor:pointer;
+  display:grid; place-items:center; transition:var(--tr);
+}
+.modal-x:hover { color:var(--danger); border-color:rgba(232,73,106,0.3); }
+
+.mf { margin-bottom:16px; }
+.mf label {
+  display:block; font-size:11px; font-weight:600;
+  letter-spacing:.06em; text-transform:uppercase;
+  color:var(--text2); margin-bottom:7px;
+}
+.mf input, .mf select, .mf textarea {
+  width:100%; padding:11px 14px;
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:9px; color:var(--text);
+  font-family:'DM Sans',sans-serif; font-size:13.5px;
+  outline:none; transition:var(--tr); resize:vertical;
+}
+.mf input:focus, .mf select:focus, .mf textarea:focus {
+  border-color:var(--gold); box-shadow:0 0 0 3px var(--gold-glow);
+}
+.mf select option { background:var(--surface2); }
+
+.m2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.m3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+
+.modal-ft { display:flex; gap:10px; justify-content:flex-end; margin-top:24px; }
+.btn-ghost {
+  padding:10px 22px; border-radius:9px;
+  border:1px solid var(--border); background:none;
+  color:var(--text2); font-family:'DM Sans',sans-serif; font-size:13.5px;
+  cursor:pointer; transition:var(--tr);
+}
+.btn-ghost:hover { background:var(--surface2); color:var(--text); }
+.btn-save {
+  padding:10px 26px; border-radius:9px;
+  background:linear-gradient(135deg,var(--gold),var(--gold2));
+  border:none; color:#0a0c10;
+  font-family:'Syne',sans-serif; font-size:13.5px; font-weight:700;
+  cursor:pointer; transition:var(--tr);
+}
+.btn-save:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(212,168,67,0.3); }
+
+/* ════════════════════════════════════════════════
+   TOAST
+════════════════════════════════════════════════ */
+#toast {
+  position:fixed; bottom:28px; right:28px;
+  background:var(--surface); border:1px solid var(--border2);
+  border-radius:12px; padding:13px 18px;
+  display:flex; align-items:center; gap:9px;
+  font-size:13.5px; font-weight:500;
+  box-shadow:0 16px 48px rgba(0,0,0,0.4); z-index:9000;
+  transform:translateY(80px); opacity:0;
+  transition:.35s cubic-bezier(.34,1.56,.64,1);
+}
+#toast.show { transform:translateY(0); opacity:1; }
+.ti { font-size:17px; }
+
+/* ════════════════════════════════════════════════
+   RESPONSIVE
+════════════════════════════════════════════════ */
+@media(max-width:960px) {
+  .stats { grid-template-columns:repeat(2,1fr); }
+  .ps-stats { grid-template-columns:repeat(3,1fr); }
+  .sidebar { transform:translateX(-100%); }
+  .sidebar.open { transform:translateX(0); box-shadow:20px 0 60px rgba(0,0,0,0.4); }
+  .main { margin-left:0; }
+  .menu-btn { display:block; }
+  .m2,.m3 { grid-template-columns:1fr; }
+}
+@media(max-width:600px) {
+  .stats { grid-template-columns:1fr 1fr; }
+  .ps-stats { grid-template-columns:1fr 1fr; }
+  table th:nth-child(5), table td:nth-child(5),
+  table th:nth-child(6), table td:nth-child(6) { display:none; }
+  .topbar { padding:12px 16px; }
+  .page  { padding:16px; }
+}
+
+/* scrollbar global */
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════
+     LOGIN
+══════════════════════════════════ -->
+<div id="loginPage">
+  <div class="login-wrap">
+    <div class="login-brand">
+      <div class="login-brand-badge">
+        <div class="login-brand-icon">🔍</div>
+        <div class="login-brand-name">AQE Digital</div>
+      </div>
+      <div class="login-h">QC Task Pro</div>
+      <div class="login-sub">Quality Control & Project Management Dashboard</div>
+    </div>
+    <div class="login-card">
+      <div class="lf">
+        <label>Username</label>
+        <div class="input-wrap">
+          <input type="text" id="lu" placeholder="Enter your username" autocomplete="username">
+        </div>
+      </div>
+      <div class="lf">
+        <label>Password</label>
+        <div class="input-wrap">
+          <input type="password" id="lp" placeholder="••••••••••" autocomplete="current-password" id="lp">
+          <button class="eye-btn" onclick="togglePass()" id="eyeBtn">👁</button>
+        </div>
+      </div>
+      <div class="login-err" id="lerr">⚠️ Invalid credentials. Please try again.</div>
+      <button class="login-submit" onclick="doLogin()">Sign In to Dashboard →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     APP
+══════════════════════════════════ -->
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <div class="brand-row">
+        <div class="brand-icon">🔍</div>
+        <div class="brand-text">
+          <span>AQE Digital</span>
+          <div class="brand-sub">QC TASK PRO</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-scroll">
+      <div class="nav-grp">
+        <div class="nav-grp-label">Task Manager</div>
+        <div class="nav-item active" onclick="goPage('tasks','all',this)">
+          <span class="nav-ico">📋</span> All Tasks
+          <span class="nav-badge nb-all" id="nb-all">0</span>
+        </div>
+        <div class="nav-item" onclick="goPage('tasks','pending',this)">
+          <span class="nav-ico">⏳</span> Pending
+          <span class="nav-badge nb-p" id="nb-p">0</span>
+        </div>
+        <div class="nav-item" onclick="goPage('tasks','ongoing',this)">
+          <span class="nav-ico">🔄</span> Ongoing
+          <span class="nav-badge nb-o" id="nb-o">0</span>
+        </div>
+        <div class="nav-item" onclick="goPage('tasks','completed',this)">
+          <span class="nav-ico">✅</span> Completed
+          <span class="nav-badge nb-d" id="nb-d">0</span>
+        </div>
+      </div>
+      <div class="nav-grp">
+        <div class="nav-grp-label">Modules</div>
+        <div class="nav-item" onclick="goPage('projectsheet','all',this)">
+          <span class="nav-ico">📊</span> Project Sheet
+        </div>
+      </div>
+      <div class="nav-grp">
+        <div class="nav-grp-label">Versions</div>
+        <div id="verNav"></div>
+      </div>
+    </div>
+
+    <div class="sidebar-foot">
+      <div class="user-row">
+        <div class="user-av" id="uAv">A</div>
+        <div class="user-info">
+          <div class="user-name" id="uName">Admin</div>
+          <div class="user-role">QC Manager</div>
+        </div>
+        <button class="logout-btn" onclick="logout()" title="Sign out">⏻</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+        <div class="page-title" id="pageTitle">Task Dashboard</div>
+      </div>
+      <!-- THEME TOGGLE -->
+      <div class="theme-toggle">
+        <button class="theme-btn active" id="tbDark" onclick="setTheme('dark')">🌙 Dark</button>
+        <button class="theme-btn" id="tbLight" onclick="setTheme('light')">☀️ Light</button>
+      </div>
+      <div class="topbar-actions" id="taskTopActions">
+        <select class="ver-sel" id="vf" onchange="applyVer()">
+          <option value="all">All Versions</option>
+        </select>
+        <button class="btn-primary" onclick="openAddTask()">＋ Add Task</button>
+      </div>
+      <div class="topbar-actions" id="psTopActions" style="display:none">
+        <button class="btn-sec" onclick="triggerExcel()">📂 Upload Excel</button>
+        <button class="btn-primary" onclick="exportPS()">⬇ Export Excel</button>
+      </div>
+    </div>
+
+    <!-- ════ TASKS PAGE ════ -->
+    <div class="page active" id="page-tasks">
+
+      <!-- STATS -->
+      <div class="stats">
+        <div class="stat s1"><div class="stat-ico">📋</div><div class="stat-n" id="s-all">0</div><div class="stat-lbl">Total Tasks</div></div>
+        <div class="stat s2"><div class="stat-ico">⏳</div><div class="stat-n" id="s-p">0</div><div class="stat-lbl">Pending</div></div>
+        <div class="stat s3"><div class="stat-ico">🔄</div><div class="stat-n" id="s-o">0</div><div class="stat-lbl">Ongoing</div></div>
+        <div class="stat s4"><div class="stat-ico">✅</div><div class="stat-n" id="s-d">0</div><div class="stat-lbl">Completed</div></div>
+      </div>
+
+      <!-- FILTERS -->
+      <div class="filter-row">
+        <button class="fbtn active" onclick="setF('all',this)">All</button>
+        <button class="fbtn" onclick="setF('pending',this)">⏳ Pending</button>
+        <button class="fbtn" onclick="setF('ongoing',this)">🔄 Ongoing</button>
+        <button class="fbtn" onclick="setF('completed',this)">✅ Completed</button>
+        <input class="search-inp" type="text" placeholder="🔍 Search tasks…" oninput="srch(this.value)">
+      </div>
+
+      <!-- TABLE -->
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Task</th>
+              <th>Status</th>
+              <th>Priority</th>
+              <th>Version</th>
+              <th>Assigned To</th>
+              <th>Assigned By</th>
+              <th>Time</th>
+              <th>Due Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="taskBody"></tbody>
+        </table>
+        <div class="empty" id="taskEmpty" style="display:none">
+          <div class="empty-ico">🗂️</div>
+          <div class="empty-t">No tasks found</div>
+          <div class="empty-s">Add a task using the button above</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ PROJECT SHEET PAGE ════ -->
+    <div class="page" id="page-projectsheet">
+
+      <div class="ps-header">
+        <div>
+          <div class="ps-title">📊 Project Sheet</div>
+          <div class="ps-sub">Track completed QC tasks — Bug counts, performers & live status</div>
+        </div>
+        <div class="ps-actions">
+          <button class="btn-sec" onclick="openAddPS()">＋ Add Entry</button>
+          <button class="btn-sec" onclick="triggerExcel()">📂 Upload Excel</button>
+          <button class="btn-primary" onclick="exportPS()">⬇ Export Excel</button>
+        </div>
+      </div>
+
+      <!-- GOOGLE SHEET LINK -->
+      <div class="gsheet-bar">
+        <div class="gsheet-ico">📗</div>
+        <input class="gsheet-inp" id="gsLink" type="url" placeholder="Paste Google Sheet link here to track your project sheet…" oninput="saveGS()">
+        <button class="gsheet-link-btn" onclick="openGS()">Open Sheet ↗</button>
+      </div>
+
+      <!-- DROP ZONE -->
+      <div class="drop-zone" id="dropZone" onclick="triggerExcel()" ondragover="dov(event)" ondrop="dop(event)" ondragleave="document.getElementById('dropZone').classList.remove('drag')">
+        <div class="drop-ico">📂</div>
+        <div class="drop-t">Drop Excel file here or click to upload</div>
+        <div class="drop-s">Supports .xlsx, .xls — Data will be auto-mapped to fields below</div>
+      </div>
+      <input type="file" id="excelInput" accept=".xlsx,.xls" onchange="handleExcel(this.files[0])">
+
+      <!-- PS STATS -->
+      <div class="ps-stats">
+        <div class="pss c1"><div class="pss-n" id="ps-total">0</div><div class="pss-l">Total Entries</div></div>
+        <div class="pss c2"><div class="pss-n" id="ps-done">0</div><div class="pss-l">Bugs Done</div></div>
+        <div class="pss c3"><div class="pss-n" id="ps-found">0</div><div class="pss-l">Bugs Found</div></div>
+        <div class="pss c4"><div class="pss-n" id="ps-ignore">0</div><div class="pss-l">Ignored</div></div>
+        <div class="pss c5"><div class="pss-n" id="ps-live">0</div><div class="pss-l">As Per Live</div></div>
+      </div>
+
+      <!-- PROJECT TABLE -->
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Sr No</th>
+              <th>Zoho Project URL</th>
+              <th>Performed By</th>
+              <th>Bugs Found</th>
+              <th>Bugs Done</th>
+              <th>Ignored</th>
+              <th>As Per Live</th>
+              <th>Status</th>
+              <th>Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="psBody"></tbody>
+        </table>
+        <div class="empty" id="psEmpty" style="display:none">
+          <div class="empty-ico">📊</div>
+          <div class="empty-t">No project entries yet</div>
+          <div class="empty-s">Add manually or upload an Excel file</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ══════════════════════════════════
+     ADD/EDIT TASK MODAL
+══════════════════════════════════ -->
+<div class="ov" id="taskModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title" id="taskModalTitle">Add New Task</div>
+      <button class="modal-x" onclick="closeModal('taskModal')">✕</button>
+    </div>
+    <div class="mf">
+      <label>Task Title *</label>
+      <input type="text" id="f-title" placeholder="Enter task title…">
+    </div>
+    <div class="mf">
+      <label>Description</label>
+      <textarea id="f-desc" rows="2" placeholder="Brief task description…"></textarea>
+    </div>
+    <div class="m2">
+      <div class="mf">
+        <label>Status</label>
+        <select id="f-status">
+          <option value="pending">⏳ Pending</option>
+          <option value="ongoing">🔄 Ongoing</option>
+          <option value="completed">✅ Completed</option>
+        </select>
+      </div>
+      <div class="mf">
+        <label>Priority</label>
+        <select id="f-priority">
+          <option value="high">🔴 High</option>
+          <option value="medium" selected>🟡 Medium</option>
+          <option value="low">🟢 Low</option>
+        </select>
+      </div>
+    </div>
+    <div class="m2">
+      <div class="mf">
+        <label>Assigned To (Kisne Kiya)</label>
+        <input type="text" id="f-to" placeholder="Team member name…">
+      </div>
+      <div class="mf">
+        <label>Assigned By (Kisne Diya)</label>
+        <input type="text" id="f-by" placeholder="Manager / Lead name…">
+      </div>
+    </div>
+    <div class="m3">
+      <div class="mf">
+        <label>Version</label>
+        <input type="text" id="f-ver" placeholder="e.g. v2.0">
+      </div>
+      <div class="mf">
+        <label>Time (Kab Kiya)</label>
+        <input type="datetime-local" id="f-time">
+      </div>
+      <div class="mf">
+        <label>Due Date</label>
+        <input type="date" id="f-date">
+      </div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-ghost" onclick="closeModal('taskModal')">Cancel</button>
+      <button class="btn-save" onclick="saveTask()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     ADD/EDIT PROJECT SHEET MODAL
+══════════════════════════════════ -->
+<div class="ov" id="psModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-title" id="psModalTitle">Add Project Entry</div>
+      <button class="modal-x" onclick="closeModal('psModal')">✕</button>
+    </div>
+    <div class="mf">
+      <label>Zoho Project URL</label>
+      <input type="url" id="ps-url" placeholder="https://projects.zoho.com/…">
+    </div>
+    <div class="m2">
+      <div class="mf">
+        <label>Performed By (Kisne Perform Kiya)</label>
+        <input type="text" id="ps-by" placeholder="QC member name…">
+      </div>
+      <div class="mf">
+        <label>Date</label>
+        <input type="date" id="ps-date">
+      </div>
+    </div>
+    <div class="m3">
+      <div class="mf">
+        <label>Bugs Found (Kitne Mile)</label>
+        <input type="number" id="ps-found" placeholder="0" min="0">
+      </div>
+      <div class="mf">
+        <label>Bugs Done (Kitne Done)</label>
+        <input type="number" id="ps-done" placeholder="0" min="0">
+      </div>
+      <div class="mf">
+        <label>Ignored (Kitne Ignore)</label>
+        <input type="number" id="ps-ignore" placeholder="0" min="0">
+      </div>
+    </div>
+    <div class="m2">
+      <div class="mf">
+        <label>As Per Live</label>
+        <select id="ps-live">
+          <option value="Yes">✅ Yes</option>
+          <option value="No">❌ No</option>
+          <option value="Partial">⚠️ Partial</option>
+        </select>
+      </div>
+      <div class="mf">
+        <label>Status</label>
+        <select id="ps-status">
+          <option value="Completed">✅ Completed</option>
+          <option value="In Review">🔄 In Review</option>
+          <option value="Pending">⏳ Pending</option>
+        </select>
+      </div>
+    </div>
+    <div class="mf">
+      <label>Notes</label>
+      <textarea id="ps-notes" rows="2" placeholder="Additional notes…"></textarea>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-ghost" onclick="closeModal('psModal')">Cancel</button>
+      <button class="btn-save" onclick="savePS()">Save Entry</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"><span class="ti" id="ti">✅</span><span id="tm"></span></div>
+
+<script>
+/* ══════════════════════════════════════════════
+   CREDENTIALS (set your own here)
+══════════════════════════════════════════════ */
+const CREDS = { admin:'admin@123', qcmanager:'qc@2024', aqe:'aqe@digital' };
+
+/* ══════════════════════════════════════════════
+   AUTH
+══════════════════════════════════════════════ */
+let CU = null;
+
+function togglePass() {
+  const i = document.getElementById('lp');
+  const b = document.getElementById('eyeBtn');
+  i.type = i.type === 'password' ? 'text' : 'password';
+  b.textContent = i.type === 'password' ? '👁' : '🙈';
+}
+
+function doLogin() {
+  const u = document.getElementById('lu').value.trim();
+  const p = document.getElementById('lp').value;
+  const e = document.getElementById('lerr');
+  if(CREDS[u] && CREDS[u] === p) {
+    CU = u; e.style.display = 'none';
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('uName').textContent = u.charAt(0).toUpperCase()+u.slice(1);
+    document.getElementById('uAv').textContent = u.charAt(0).toUpperCase();
+    render();
+  } else {
+    e.style.display = 'block';
+  }
+}
+document.getElementById('lp').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('lu').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+function logout() {
+  CU = null;
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+/* ══════════════════════════════════════════════
+   THEME
+══════════════════════════════════════════════ */
+let theme = localStorage.getItem('aqe_theme') || 'dark';
+applyTheme();
+
+function setTheme(t) {
+  theme = t; applyTheme();
+  localStorage.setItem('aqe_theme', t);
+}
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('tbDark')  && document.getElementById('tbDark').classList.toggle('active',  theme==='dark');
+  document.getElementById('tbLight') && document.getElementById('tbLight').classList.toggle('active', theme==='light');
+}
+
+/* ══════════════════════════════════════════════
+   DATA
+══════════════════════════════════════════════ */
+let tasks   = JSON.parse(localStorage.getItem('aqe_tasks')   || '[]');
+let psRows  = JSON.parse(localStorage.getItem('aqe_ps')      || '[]');
+let gsLink  = localStorage.getItem('aqe_gs') || '';
+
+let tFilter = 'all';
+let tVer    = 'all';
+let tSearch = '';
+let editTid = null;
+let editPid = null;
+
+function saveTasks() { localStorage.setItem('aqe_tasks', JSON.stringify(tasks)); }
+function savePS_()   { localStorage.setItem('aqe_ps',    JSON.stringify(psRows)); }
+function saveGS()    {
+  gsLink = document.getElementById('gsLink').value;
+  localStorage.setItem('aqe_gs', gsLink);
+}
+
+/* ══════════════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════════════ */
+let currentPage = 'tasks';
+
+function goPage(page, filter, el) {
+  currentPage = page;
+  // hide all pages
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  // nav active
+  document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+  el.classList.add('active');
+  // topbar
+  document.getElementById('taskTopActions').style.display = page==='tasks' ? 'flex' : 'none';
+  document.getElementById('psTopActions').style.display   = page==='projectsheet' ? 'flex' : 'none';
+  // title
+  const titles = { tasks:'Task Dashboard', projectsheet:'Project Sheet' };
+  document.getElementById('pageTitle').textContent = titles[page] || page;
+
+  if(page==='tasks') { if(filter!=='all') setF(filter); renderTasks(); }
+  if(page==='projectsheet') { renderPS(); }
+
+  // close sidebar on mobile
+  if(window.innerWidth<=960) document.getElementById('sidebar').classList.remove('open');
+}
+
+/* ══════════════════════════════════════════════
+   RENDER
+══════════════════════════════════════════════ */
+function render() {
+  updateStats();
+  updateVersionNav();
+  renderTasks();
+  renderPS();
+  // load gs link
+  document.getElementById('gsLink').value = gsLink;
+}
+
+function updateStats() {
+  const all=tasks.length, p=tasks.filter(t=>t.status==='pending').length,
+        o=tasks.filter(t=>t.status==='ongoing').length, d=tasks.filter(t=>t.status==='completed').length;
+  document.getElementById('s-all').textContent = all;
+  document.getElementById('s-p').textContent   = p;
+  document.getElementById('s-o').textContent   = o;
+  document.getElementById('s-d').textContent   = d;
+  document.getElementById('nb-all').textContent = all;
+  document.getElementById('nb-p').textContent   = p;
+  document.getElementById('nb-o').textContent   = o;
+  document.getElementById('nb-d').textContent   = d;
+}
+
+function updateVersionNav() {
+  const vs = [...new Set(tasks.map(t=>t.ver).filter(Boolean))].sort();
+  const vf  = document.getElementById('vf');
+  const cur = vf.value;
+  vf.innerHTML = '<option value="all">All Versions</option>' +
+    vs.map(v=>`<option value="${v}"${v===cur?' selected':''}>${v}</option>`).join('');
+  document.getElementById('verNav').innerHTML = vs.map(v=>
+    `<div class="nav-item" onclick="filterVer('${v}',this)">
+       <span class="nav-ico">🏷️</span> ${esc(v)}
+     </div>`
+  ).join('');
+}
+
+/* ── TASK TABLE ── */
+function renderTasks() {
+  let list = [...tasks];
+  if(tFilter!=='all') list = list.filter(t=>t.status===tFilter);
+  if(tVer!=='all')    list = list.filter(t=>t.ver===tVer);
+  if(tSearch)         list = list.filter(t=>
+    t.title.toLowerCase().includes(tSearch) ||
+    (t.desc||'').toLowerCase().includes(tSearch) ||
+    (t.to||'').toLowerCase().includes(tSearch) ||
+    (t.by||'').toLowerCase().includes(tSearch)
+  );
+  const tb = document.getElementById('taskBody');
+  const em = document.getElementById('taskEmpty');
+  if(!list.length){ tb.innerHTML=''; em.style.display='block'; return; }
+  em.style.display = 'none';
+  const slbl = {pending:'Pending',ongoing:'Ongoing',completed:'Completed'};
+  const plbl = {high:'High',medium:'Medium',low:'Low'};
+  tb.innerHTML = list.map((t,i)=>`
+    <tr>
+      <td style="color:var(--text3);font-size:12px">${i+1}</td>
+      <td>
+        <div class="task-main">${esc(t.title)}</div>
+        ${t.desc?`<div class="task-sub">${esc(t.desc)}</div>`:''}
+      </td>
+      <td><span class="spl spl-${t.status}">${slbl[t.status]}</span></td>
+      <td><span class="ppl ppl-${t.priority}">${plbl[t.priority]}</span></td>
+      <td>${t.ver?`<span class="vtag">${esc(t.ver)}</span>`:'-'}</td>
+      <td><div class="task-sub">👤 ${esc(t.to||'-')}</div></td>
+      <td><div class="task-sub">🎯 ${esc(t.by||'-')}</div></td>
+      <td><div class="task-sub" style="font-size:11px">${t.time?fmtDT(t.time):'-'}</div></td>
+      <td style="font-size:12.5px;color:var(--text3)">${t.date||'-'}</td>
+      <td>
+        <div class="actb">
+          <button class="ab" onclick="editTask('${t.id}')" title="Edit">✏️</button>
+          <button class="ab ok" onclick="nextStatus('${t.id}')" title="Next Status">⟳</button>
+          <button class="ab del" onclick="delTask('${t.id}')" title="Delete">🗑</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+/* ── PROJECT SHEET TABLE ── */
+function renderPS() {
+  const tb = document.getElementById('psBody');
+  const em = document.getElementById('psEmpty');
+  // stats
+  const tf  = psRows.length;
+  const bf  = psRows.reduce((a,r)=>a+((+r.found)||0),0);
+  const bd  = psRows.reduce((a,r)=>a+((+r.done)||0),0);
+  const ig  = psRows.reduce((a,r)=>a+((+r.ignore)||0),0);
+  const lv  = psRows.filter(r=>r.live==='Yes').length;
+  document.getElementById('ps-total').textContent  = tf;
+  document.getElementById('ps-done').textContent   = bd;
+  document.getElementById('ps-found').textContent  = bf;
+  document.getElementById('ps-ignore').textContent = ig;
+  document.getElementById('ps-live').textContent   = lv;
+
+  if(!tf){ tb.innerHTML=''; em.style.display='block'; return; }
+  em.style.display = 'none';
+
+  const liveCls = {Yes:'color:var(--done)',No:'color:var(--danger)',Partial:'color:var(--pending)'};
+  const liveIco = {Yes:'✅',No:'❌',Partial:'⚠️'};
+  const stCls   = {Completed:'spl-completed',  'In Review':'spl-ongoing', Pending:'spl-pending'};
+
+  tb.innerHTML = psRows.map((r,i)=>`
+    <tr>
+      <td style="color:var(--text3);font-size:12px;font-family:'Syne',sans-serif">${i+1}</td>
+      <td>${r.url?`<a class="zoho-link" href="${esc(r.url)}" target="_blank" rel="noopener">🔗 Open Project ↗</a>`:'-'}</td>
+      <td><div class="task-main">${esc(r.by||'-')}</div></td>
+      <td class="bug-cell"><span class="bug-num" style="color:var(--pending)">${r.found||0}</span></td>
+      <td class="bug-cell"><span class="bug-num" style="color:var(--done)">${r.done||0}</span></td>
+      <td class="bug-cell"><span class="bug-num" style="color:var(--text3)">${r.ignore||0}</span></td>
+      <td style="font-weight:600;${liveCls[r.live]||''}">${liveIco[r.live]||''} ${r.live||'-'}</td>
+      <td><span class="spl ${stCls[r.status]||'spl-pending'}">${r.status||'Pending'}</span></td>
+      <td style="font-size:12px;color:var(--text3)">${r.date||'-'}</td>
+      <td>
+        <div class="actb">
+          <button class="ab" onclick="editPS('${r.id}')" title="Edit">✏️</button>
+          <button class="ab del" onclick="delPS('${r.id}')" title="Delete">🗑</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+/* ══════════════════════════════════════════════
+   FILTER / SEARCH
+══════════════════════════════════════════════ */
+function setF(f, el) {
+  tFilter = f;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+  if(el) el.classList.add('active');
+  renderTasks();
+}
+function filterVer(v, el) {
+  tVer = v;
+  document.getElementById('vf').value = v;
+  renderTasks();
+  document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+  el.classList.add('active');
+}
+function applyVer()   { tVer = document.getElementById('vf').value; renderTasks(); }
+function srch(q)      { tSearch = q.toLowerCase(); renderTasks(); }
+
+/* ══════════════════════════════════════════════
+   TASK CRUD
+══════════════════════════════════════════════ */
+function openAddTask() {
+  editTid = null;
+  document.getElementById('taskModalTitle').textContent = 'Add New Task';
+  ['f-title','f-desc','f-to','f-by','f-ver','f-time','f-date'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-status').value   = 'pending';
+  document.getElementById('f-priority').value = 'medium';
+  document.getElementById('taskModal').classList.add('open');
+}
+function editTask(id) {
+  const t = tasks.find(x=>x.id===id); if(!t) return;
+  editTid = id;
+  document.getElementById('taskModalTitle').textContent = 'Edit Task';
+  document.getElementById('f-title').value    = t.title;
+  document.getElementById('f-desc').value     = t.desc||'';
+  document.getElementById('f-status').value   = t.status;
+  document.getElementById('f-priority').value = t.priority;
+  document.getElementById('f-to').value       = t.to||'';
+  document.getElementById('f-by').value       = t.by||'';
+  document.getElementById('f-ver').value      = t.ver||'';
+  document.getElementById('f-time').value     = t.time||'';
+  document.getElementById('f-date').value     = t.date||'';
+  document.getElementById('taskModal').classList.add('open');
+}
+function saveTask() {
+  const title = document.getElementById('f-title').value.trim();
+  if(!title){ showToast('⚠️','Please enter a task title'); return; }
+  const data = {
+    title,
+    desc:     document.getElementById('f-desc').value.trim(),
+    status:   document.getElementById('f-status').value,
+    priority: document.getElementById('f-priority').value,
+    to:       document.getElementById('f-to').value.trim(),
+    by:       document.getElementById('f-by').value.trim(),
+    ver:      document.getElementById('f-ver').value.trim(),
+    time:     document.getElementById('f-time').value,
+    date:     document.getElementById('f-date').value,
+  };
+  if(editTid) {
+    const idx = tasks.findIndex(x=>x.id===editTid);
+    tasks[idx] = {...tasks[idx], ...data};
+    showToast('✅','Task updated!');
+  } else {
+    tasks.push({...data, id: uid()});
+    showToast('✅','Task added!');
+  }
+  saveTasks(); closeModal('taskModal'); updateStats(); updateVersionNav(); renderTasks();
+}
+function delTask(id) {
+  if(!confirm('Delete this task?')) return;
+  tasks = tasks.filter(t=>t.id!==id);
+  saveTasks(); updateStats(); updateVersionNav(); renderTasks();
+  showToast('🗑️','Task deleted');
+}
+function nextStatus(id) {
+  const t = tasks.find(x=>x.id===id); if(!t) return;
+  const c = ['pending','ongoing','completed'];
+  t.status = c[(c.indexOf(t.status)+1)%3];
+  saveTasks(); updateStats(); renderTasks();
+  showToast('🔄',`Status → ${t.status}`);
+}
+
+/* ══════════════════════════════════════════════
+   PROJECT SHEET CRUD
+══════════════════════════════════════════════ */
+function openAddPS() {
+  editPid = null;
+  document.getElementById('psModalTitle').textContent = 'Add Project Entry';
+  ['ps-url','ps-by','ps-date'].forEach(id=>document.getElementById(id).value='');
+  ['ps-found','ps-done','ps-ignore'].forEach(id=>document.getElementById(id).value=0);
+  document.getElementById('ps-live').value   = 'Yes';
+  document.getElementById('ps-status').value = 'Completed';
+  document.getElementById('ps-notes').value  = '';
+  document.getElementById('psModal').classList.add('open');
+}
+function editPS(id) {
+  const r = psRows.find(x=>x.id===id); if(!r) return;
+  editPid = id;
+  document.getElementById('psModalTitle').textContent = 'Edit Project Entry';
+  document.getElementById('ps-url').value    = r.url||'';
+  document.getElementById('ps-by').value     = r.by||'';
+  document.getElementById('ps-date').value   = r.date||'';
+  document.getElementById('ps-found').value  = r.found||0;
+  document.getElementById('ps-done').value   = r.done||0;
+  document.getElementById('ps-ignore').value = r.ignore||0;
+  document.getElementById('ps-live').value   = r.live||'Yes';
+  document.getElementById('ps-status').value = r.status||'Completed';
+  document.getElementById('ps-notes').value  = r.notes||'';
+  document.getElementById('psModal').classList.add('open');
+}
+function savePS() {
+  const data = {
+    url:    document.getElementById('ps-url').value.trim(),
+    by:     document.getElementById('ps-by').value.trim(),
+    date:   document.getElementById('ps-date').value,
+    found:  +document.getElementById('ps-found').value||0,
+    done:   +document.getElementById('ps-done').value||0,
+    ignore: +document.getElementById('ps-ignore').value||0,
+    live:   document.getElementById('ps-live').value,
+    status: document.getElementById('ps-status').value,
+    notes:  document.getElementById('ps-notes').value.trim(),
+  };
+  if(editPid) {
+    const idx = psRows.findIndex(x=>x.id===editPid);
+    psRows[idx] = {...psRows[idx], ...data};
+    showToast('✅','Entry updated!');
+  } else {
+    psRows.push({...data, id: uid()});
+    showToast('✅','Entry added!');
+  }
+  savePS_(); closeModal('psModal'); renderPS();
+}
+function delPS(id) {
+  if(!confirm('Delete this entry?')) return;
+  psRows = psRows.filter(r=>r.id!==id);
+  savePS_(); renderPS();
+  showToast('🗑️','Entry deleted');
+}
+
+/* ══════════════════════════════════════════════
+   EXCEL UPLOAD
+══════════════════════════════════════════════ */
+function triggerExcel() { document.getElementById('excelInput').click(); }
+
+function dov(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('drag'); }
+function dop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if(f) handleExcel(f);
+}
+
+function handleExcel(file) {
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb   = XLSX.read(e.target.result, {type:'array'});
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      let added = 0;
+      rows.forEach(r => {
+        const entry = {
+          id:     uid(),
+          url:    r['Zoho Project URL'] || r['zoho_url'] || r['URL'] || '',
+          by:     r['Performed By'] || r['Kisne Perform Kiya'] || r['By'] || '',
+          date:   r['Date'] || '',
+          found:  +r['Bugs Found'] || +r['bugs_found'] || 0,
+          done:   +r['Bugs Done']  || +r['bugs_done']  || 0,
+          ignore: +r['Ignored']    || +r['ignore']      || 0,
+          live:   r['As Per Live'] || r['live'] || 'Yes',
+          status: r['Status'] || 'Completed',
+          notes:  r['Notes'] || '',
+        };
+        psRows.push(entry);
+        added++;
+      });
+      savePS_(); renderPS();
+      showToast('📊',`${added} rows imported from Excel!`);
+    } catch(err) {
+      showToast('⚠️','Could not read Excel file');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  document.getElementById('excelInput').value = '';
+}
+
+/* ══════════════════════════════════════════════
+   EXCEL EXPORT
+══════════════════════════════════════════════ */
+function exportPS() {
+  if(!psRows.length){ showToast('⚠️','No data to export'); return; }
+  const data = psRows.map((r,i)=>({
+    'Sr No':              i+1,
+    'Zoho Project URL':   r.url||'',
+    'Performed By':       r.by||'',
+    'Bugs Found':         r.found||0,
+    'Bugs Done':          r.done||0,
+    'Ignored':            r.ignore||0,
+    'As Per Live':        r.live||'',
+    'Status':             r.status||'',
+    'Date':               r.date||'',
+    'Notes':              r.notes||'',
+  }));
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Project Sheet');
+  // Style header row width
+  ws['!cols'] = [{wch:6},{wch:40},{wch:20},{wch:12},{wch:12},{wch:10},{wch:12},{wch:14},{wch:12},{wch:30}];
+  XLSX.writeFile(wb, `AQE_ProjectSheet_${today()}.xlsx`);
+  showToast('⬇','Excel exported successfully!');
+}
+
+/* ══════════════════════════════════════════════
+   GOOGLE SHEET
+══════════════════════════════════════════════ */
+function openGS() {
+  const link = document.getElementById('gsLink').value.trim();
+  if(!link){ showToast('⚠️','Paste a Google Sheet link first'); return; }
+  window.open(link, '_blank');
+}
+
+/* ══════════════════════════════════════════════
+   MODAL
+══════════════════════════════════════════════ */
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.ov').forEach(ov=>{
+  ov.addEventListener('click', e=>{ if(e.target===ov) ov.classList.remove('open'); });
+});
+
+/* ══════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════ */
+let toastT;
+function showToast(icon, msg) {
+  document.getElementById('ti').textContent = icon;
+  document.getElementById('tm').textContent = msg;
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(()=>t.classList.remove('show'), 3200);
+}
+
+/* ══════════════════════════════════════════════
+   SIDEBAR MOBILE
+══════════════════════════════════════════════ */
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+/* ══════════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════════ */
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function today(){ return new Date().toISOString().slice(0,10); }
+function fmtDT(dt) {
+  if(!dt) return '-';
+  try {
+    return new Date(dt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'});
+  } catch{ return dt; }
+}
+
+/* ══════════════════════════════════════════════
+   SEED DATA
+══════════════════════════════════════════════ */
+if(!tasks.length) {
+  tasks = [
+    {id:uid(),title:'Homepage QC Testing',desc:'Full QC of homepage UI on all browsers',status:'completed',priority:'high',to:'Riya Sharma',by:'Arjun Mehta',ver:'v2.0',time:'2025-02-10T10:30',date:'2025-02-10'},
+    {id:uid(),title:'Checkout Flow Bugs',desc:'Payment gateway and cart edge cases',status:'ongoing',priority:'high',to:'Vikram Patel',by:'Arjun Mehta',ver:'v2.1',time:'2025-02-18T09:00',date:'2025-02-25'},
+    {id:uid(),title:'Mobile Responsive Check',desc:'iOS and Android viewport testing',status:'ongoing',priority:'medium',to:'Sneha Joshi',by:'Pooja Singh',ver:'v2.1',time:'2025-02-20T14:00',date:'2025-02-28'},
+    {id:uid(),title:'SEO Meta Tags Review',desc:'Title, description, OG tags validation',status:'pending',priority:'medium',to:'Rahul Gupta',by:'Arjun Mehta',ver:'v3.0',time:'',date:'2025-03-05'},
+    {id:uid(),title:'API Response Testing',desc:'Test all REST endpoints with Postman',status:'pending',priority:'high',to:'Ankit Das',by:'Pooja Singh',ver:'v3.0',time:'',date:'2025-03-10'},
+    {id:uid(),title:'404 Page & Error States',desc:'All error pages and edge UI states',status:'pending',priority:'low',to:'Riya Sharma',by:'Arjun Mehta',ver:'v2.2',time:'',date:'2025-03-15'},
+  ];
+  saveTasks();
+}
+if(!psRows.length) {
+  psRows = [
+    {id:uid(),url:'https://projects.zoho.com/portal/aqedigital/task/12001',by:'Riya Sharma',date:'2025-02-10',found:12,done:10,ignore:2,live:'Yes',status:'Completed',notes:'All major bugs fixed'},
+    {id:uid(),url:'https://projects.zoho.com/portal/aqedigital/task/12002',by:'Vikram Patel',date:'2025-02-18',found:8,done:6,ignore:1,live:'Partial',status:'In Review',notes:'2 bugs pending design approval'},
+    {id:uid(),url:'https://projects.zoho.com/portal/aqedigital/task/12003',by:'Sneha Joshi',date:'2025-02-20',found:5,done:5,ignore:0,live:'Yes',status:'Completed',notes:'Clean pass'},
+  ];
+  savePS_();
+}
+
+/* INIT */
+applyTheme();
+</script>
+</body>
+</html>
