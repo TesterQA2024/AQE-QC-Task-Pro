@@ -3,1505 +3,1414 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AQE Digital — QC Task Pro</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<title>AQE · QC Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Outfit:wght@300;400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+<!-- FIREBASE SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+<!-- EXCEL LIBRARY -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<style>
-/* ════════════════════════════════════════════════
-   CSS VARIABLES — DARK & LIGHT THEMES
-════════════════════════════════════════════════ */
-:root {
-  --bg:        #090b10;
-  --bg2:       #0d1018;
-  --surface:   #111620;
-  --surface2:  #181e2e;
-  --surface3:  #1e2538;
-  --border:    rgba(255,255,255,0.07);
-  --border2:   rgba(255,255,255,0.12);
-  --text:      #e4e8f4;
-  --text2:     #8892a4;
-  --text3:     #5a6275;
-  --gold:      #d4a843;
-  --gold2:     #f0cb70;
-  --gold-glow: rgba(212,168,67,0.15);
-  --pending:   #e8914a;
-  --ongoing:   #4a9de8;
-  --done:      #3ecf8e;
-  --danger:    #e8496a;
-  --radius:    14px;
-  --shadow:    0 20px 60px rgba(0,0,0,0.6);
-  --tr: .2s ease;
-}
-[data-theme="light"] {
-  --bg:        #f0f2f8;
-  --bg2:       #e8eaf4;
-  --surface:   #ffffff;
-  --surface2:  #f5f6fc;
-  --surface3:  #eceef8;
-  --border:    rgba(0,0,0,0.08);
-  --border2:   rgba(0,0,0,0.14);
-  --text:      #1a1d2e;
-  --text2:     #5a6275;
-  --text3:     #9aa0b4;
-  --gold-glow: rgba(212,168,67,0.1);
-  --shadow:    0 20px 60px rgba(0,0,0,0.1);
-}
 
-* { margin:0; padding:0; box-sizing:border-box; }
-html { scroll-behavior:smooth; }
+<!-- STYLES -->
+<link rel="stylesheet" href="styles.css">
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'DM Sans', sans-serif;
-  min-height:100vh;
-  transition: background var(--tr), color var(--tr);
-  overflow-x:hidden;
-}
-
-/* noise */
-body::after {
-  content:''; position:fixed; inset:0; pointer-events:none; z-index:9998;
-  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
-  opacity:.02;
-}
-
-/* ════════════════════════════════════════════════
-   LOGIN
-════════════════════════════════════════════════ */
-#loginPage {
-  display:flex; align-items:center; justify-content:center;
-  min-height:100vh;
-  background: radial-gradient(ellipse 100% 70% at 50% -10%, rgba(212,168,67,0.12) 0%, transparent 60%), var(--bg);
-}
-
-.login-wrap {
-  width:100%; max-width:460px; padding:20px;
-  animation: riseUp .55s cubic-bezier(.22,1,.36,1) both;
-}
-
-@keyframes riseUp {
-  from { opacity:0; transform:translateY(30px) scale(.97); }
-  to   { opacity:1; transform:translateY(0) scale(1); }
-}
-
-.login-brand {
-  text-align:center; margin-bottom:32px;
-}
-.login-brand-badge {
-  display:inline-flex; align-items:center; gap:10px;
-  background: var(--surface); border:1px solid var(--border2);
-  border-radius:40px; padding:8px 20px 8px 10px;
-  margin-bottom:20px;
-}
-.login-brand-icon {
-  width:38px; height:38px; border-radius:50%;
-  background: linear-gradient(135deg, var(--gold), var(--gold2));
-  display:grid; place-items:center; font-size:18px;
-}
-.login-brand-name {
-  font-family:'Syne',sans-serif; font-size:15px; font-weight:700;
-  letter-spacing:.03em;
-  background:linear-gradient(135deg,var(--gold),var(--gold2));
-  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-}
-.login-h { font-family:'Syne',sans-serif; font-size:32px; font-weight:800; margin-bottom:8px; }
-.login-sub { color:var(--text2); font-size:14px; }
-
-.login-card {
-  background:var(--surface);
-  border:1px solid var(--border2);
-  border-radius:22px;
-  padding:44px 40px 40px;
-  box-shadow: var(--shadow), 0 0 0 1px rgba(212,168,67,0.06);
-}
-
-.lf { margin-bottom:18px; }
-.lf label {
-  display:block; font-size:11px; font-weight:600;
-  letter-spacing:.07em; text-transform:uppercase;
-  color:var(--text2); margin-bottom:8px;
-}
-.lf .input-wrap { position:relative; }
-.lf input {
-  width:100%; padding:13px 42px 13px 16px;
-  background:var(--surface2); border:1px solid var(--border);
-  border-radius:10px; color:var(--text);
-  font-family:'DM Sans',sans-serif; font-size:14px;
-  outline:none; transition:var(--tr);
-}
-.lf input:focus { border-color:var(--gold); box-shadow:0 0 0 3px var(--gold-glow); }
-.eye-btn {
-  position:absolute; right:12px; top:50%; transform:translateY(-50%);
-  background:none; border:none; color:var(--text3); cursor:pointer;
-  font-size:16px; padding:4px; transition:var(--tr);
-}
-.eye-btn:hover { color:var(--text); }
-
-.login-err {
-  display:none; margin-top:0; margin-bottom:16px;
-  padding:11px 16px;
-  background:rgba(232,73,106,0.1); border:1px solid rgba(232,73,106,0.25);
-  border-radius:8px; color:#ff6b88; font-size:13px;
-}
-
-.login-submit {
-  width:100%; padding:14px;
-  background:linear-gradient(135deg,var(--gold),var(--gold2));
-  border:none; border-radius:10px; cursor:pointer;
-  font-family:'Syne',sans-serif; font-size:15px; font-weight:700;
-  color:#0a0c10; transition:var(--tr); margin-top:4px;
-  letter-spacing:.03em;
-}
-.login-submit:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(212,168,67,0.35); }
-
-/* ════════════════════════════════════════════════
-   LAYOUT
-════════════════════════════════════════════════ */
-#app { display:none; min-height:100vh; }
-
-.sidebar {
-  position:fixed; left:0; top:0; bottom:0; width:258px;
-  background:var(--surface); border-right:1px solid var(--border);
-  display:flex; flex-direction:column; z-index:200;
-  transition:transform .3s ease, background var(--tr), border-color var(--tr);
-}
-
-.sidebar-head {
-  padding:22px 20px 18px;
-  border-bottom:1px solid var(--border);
-}
-.brand-row { display:flex; align-items:center; gap:10px; }
-.brand-icon {
-  width:36px; height:36px; border-radius:10px;
-  background:linear-gradient(135deg,var(--gold),var(--gold2));
-  display:grid; place-items:center; font-size:16px; flex-shrink:0;
-}
-.brand-text { font-family:'Syne',sans-serif; font-size:13px; font-weight:800; line-height:1.2; }
-.brand-text span {
-  display:block; background:linear-gradient(135deg,var(--gold),var(--gold2));
-  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-}
-.brand-sub { font-size:10px; color:var(--text3); font-weight:400; letter-spacing:.05em; margin-top:2px; }
-
-.nav-scroll { flex:1; overflow-y:auto; padding:16px 12px; }
-.nav-scroll::-webkit-scrollbar { width:4px; }
-.nav-scroll::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
-
-.nav-grp { margin-bottom:20px; }
-.nav-grp-label {
-  font-size:10px; font-weight:600; letter-spacing:.1em;
-  text-transform:uppercase; color:var(--text3); padding:0 8px; margin-bottom:6px;
-}
-.nav-item {
-  display:flex; align-items:center; gap:9px;
-  padding:9px 10px; border-radius:10px; cursor:pointer;
-  transition:var(--tr); font-size:13.5px; font-weight:500; color:var(--text2);
-  margin-bottom:2px;
-}
-.nav-item:hover { background:var(--surface2); color:var(--text); }
-.nav-item.active {
-  background: linear-gradient(90deg, var(--gold-glow), transparent);
-  color:var(--gold);
-  border-left:2px solid var(--gold);
-  padding-left:8px;
-}
-.nav-ico { font-size:15px; width:20px; text-align:center; }
-.nav-badge {
-  margin-left:auto; font-size:11px; font-weight:600;
-  padding:2px 7px; border-radius:10px;
-}
-.nb-all  { background:rgba(255,255,255,0.07); color:var(--text2); }
-.nb-p    { background:rgba(232,145,74,0.15); color:var(--pending); }
-.nb-o    { background:rgba(74,157,232,0.15); color:var(--ongoing); }
-.nb-d    { background:rgba(62,207,142,0.15); color:var(--done); }
-
-.sidebar-foot {
-  padding:14px 12px;
-  border-top:1px solid var(--border);
-}
-.user-row {
-  display:flex; align-items:center; gap:9px;
-  padding:10px; border-radius:10px; background:var(--surface2);
-}
-.user-av {
-  width:34px; height:34px; border-radius:50%;
-  background:linear-gradient(135deg,var(--gold),var(--gold2));
-  display:grid; place-items:center;
-  font-family:'Syne',sans-serif; font-size:15px; font-weight:700; color:#0a0c10;
-  flex-shrink:0;
-}
-.user-info { flex:1; min-width:0; }
-.user-name { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.user-role { font-size:11px; color:var(--text3); }
-.logout-btn {
-  background:none; border:none; color:var(--text3); cursor:pointer;
-  font-size:15px; padding:5px; border-radius:6px; transition:var(--tr);
-}
-.logout-btn:hover { color:var(--danger); background:rgba(232,73,106,0.1); }
-
-/* ════════════════════════════════════════════════
-   MAIN
-════════════════════════════════════════════════ */
-.main { margin-left:258px; min-height:100vh; transition:.3s; }
-
-.topbar {
-  position:sticky; top:0; z-index:100;
-  display:flex; align-items:center; gap:12px;
-  padding:16px 28px;
-  background:var(--bg); border-bottom:1px solid var(--border);
-  backdrop-filter:blur(12px);
-  transition:background var(--tr);
-}
-.topbar-left { flex:1; display:flex; align-items:center; gap:12px; }
-.menu-btn {
-  display:none; background:none; border:none;
-  color:var(--text2); font-size:20px; cursor:pointer; padding:4px;
-}
-.page-title { font-family:'Syne',sans-serif; font-size:20px; font-weight:700; }
-
-/* THEME TOGGLE */
-.theme-toggle {
-  display:flex; align-items:center;
-  background:var(--surface2); border:1px solid var(--border);
-  border-radius:30px; padding:4px; gap:2px;
-}
-.theme-btn {
-  padding:6px 12px; border-radius:24px; border:none;
-  background:transparent; cursor:pointer;
-  font-size:13px; font-weight:500; color:var(--text3);
-  transition:var(--tr);
-}
-.theme-btn.active {
-  background:var(--surface); color:var(--text);
-  box-shadow:0 2px 8px rgba(0,0,0,0.2);
-}
-
-.topbar-actions { display:flex; align-items:center; gap:10px; }
-
-.ver-sel {
-  padding:8px 14px; background:var(--surface2);
-  border:1px solid var(--border); border-radius:9px;
-  color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px;
-  outline:none; cursor:pointer; transition:var(--tr);
-}
-.ver-sel:focus { border-color:var(--gold); }
-
-.btn-primary {
-  display:inline-flex; align-items:center; gap:7px;
-  padding:9px 18px; border-radius:9px; border:none;
-  background:linear-gradient(135deg,var(--gold),var(--gold2));
-  color:#0a0c10; font-family:'Syne',sans-serif; font-size:13px; font-weight:700;
-  cursor:pointer; transition:var(--tr); white-space:nowrap;
-}
-.btn-primary:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(212,168,67,0.3); }
-
-/* ════════════════════════════════════════════════
-   PAGE CONTENT
-════════════════════════════════════════════════ */
-.page { display:none; padding:28px; animation:fadeIn .3s ease both; }
-.page.active { display:block; }
-@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-
-/* STATS */
-.stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:28px; }
-.stat {
-  background:var(--surface); border:1px solid var(--border);
-  border-radius:var(--radius); padding:22px 20px; position:relative; overflow:hidden;
-  animation: riseUp .4s ease both;
-}
-.stat::before {
-  content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:var(--radius) var(--radius) 0 0;
-}
-.stat.s1::before { background:linear-gradient(90deg,var(--gold),var(--gold2)); }
-.stat.s2::before { background:linear-gradient(90deg,#e8914a,#f0a868); }
-.stat.s3::before { background:linear-gradient(90deg,#4a9de8,#68b8f0); }
-.stat.s4::before { background:linear-gradient(90deg,#3ecf8e,#60e0a8); }
-.stat-ico { font-size:22px; margin-bottom:12px; }
-.stat-n { font-family:'Syne',sans-serif; font-size:38px; font-weight:800; line-height:1; margin-bottom:4px; }
-.stat.s1 .stat-n { color:var(--gold); }
-.stat.s2 .stat-n { color:var(--pending); }
-.stat.s3 .stat-n { color:var(--ongoing); }
-.stat.s4 .stat-n { color:var(--done); }
-.stat-lbl { font-size:12px; color:var(--text2); font-weight:500; }
-
-/* FILTER ROW */
-.filter-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
-.fbtn {
-  padding:7px 16px; border-radius:8px;
-  border:1px solid var(--border); background:var(--surface);
-  color:var(--text2); font-family:'DM Sans',sans-serif; font-size:13px;
-  font-weight:500; cursor:pointer; transition:var(--tr);
-}
-.fbtn:hover { background:var(--surface2); color:var(--text); }
-.fbtn.active { border-color:var(--gold); color:var(--gold); background:var(--gold-glow); }
-.search-inp {
-  margin-left:auto; padding:8px 14px;
-  background:var(--surface); border:1px solid var(--border);
-  border-radius:9px; color:var(--text); font-family:'DM Sans',sans-serif;
-  font-size:13px; outline:none; width:210px; transition:var(--tr);
-}
-.search-inp::placeholder { color:var(--text3); }
-.search-inp:focus { border-color:var(--gold); }
-
-/* TABLE */
-.tbl-wrap {
-  background:var(--surface); border:1px solid var(--border);
-  border-radius:var(--radius); overflow:hidden;
-  animation: riseUp .4s .1s ease both;
-}
-table { width:100%; border-collapse:collapse; }
-thead tr { background:var(--surface2); border-bottom:1px solid var(--border); }
-th {
-  padding:12px 18px; text-align:left;
-  font-size:10.5px; font-weight:600; letter-spacing:.07em;
-  text-transform:uppercase; color:var(--text3); white-space:nowrap;
-}
-tbody tr {
-  border-bottom:1px solid var(--border); transition:var(--tr);
-}
-tbody tr:last-child { border-bottom:none; }
-tbody tr:hover { background:rgba(255,255,255,0.015); }
-td { padding:14px 18px; font-size:13.5px; vertical-align:middle; }
-
-/* STATUS PILLS */
-.spl {
-  display:inline-flex; align-items:center; gap:5px;
-  padding:4px 11px; border-radius:20px; font-size:11.5px; font-weight:600;
-}
-.spl::before { content:''; width:5px; height:5px; border-radius:50%; }
-.spl-pending   { background:rgba(232,145,74,0.12); color:var(--pending); }
-.spl-pending::before { background:var(--pending); }
-.spl-ongoing   { background:rgba(74,157,232,0.12); color:var(--ongoing); }
-.spl-ongoing::before { background:var(--ongoing); }
-.spl-completed { background:rgba(62,207,142,0.12); color:var(--done); }
-.spl-completed::before { background:var(--done); }
-
-/* PRIORITY */
-.ppl { display:inline-block; padding:3px 9px; border-radius:6px; font-size:11px; font-weight:600; }
-.ppl-high   { background:rgba(232,73,106,0.1); color:#ff6b88; }
-.ppl-medium { background:rgba(240,200,48,0.1); color:#f0c830; }
-.ppl-low    { background:rgba(100,200,120,0.1); color:#70c888; }
-
-/* VER TAG */
-.vtag {
-  background:var(--gold-glow); color:var(--gold);
-  padding:3px 9px; border-radius:6px; font-size:11px; font-weight:600;
-}
-
-/* ACTION BTNS */
-.actb { display:flex; gap:5px; }
-.ab {
-  width:30px; height:30px; border-radius:7px;
-  border:1px solid var(--border); background:var(--surface2);
-  color:var(--text3); font-size:13px; cursor:pointer;
-  display:grid; place-items:center; transition:var(--tr);
-}
-.ab:hover { color:var(--text); background:var(--surface3); }
-.ab.del:hover { color:var(--danger); border-color:rgba(232,73,106,0.3); background:rgba(232,73,106,0.08); }
-.ab.ok:hover  { color:var(--done);   border-color:rgba(62,207,142,0.3); background:rgba(62,207,142,0.08); }
-
-/* EMPTY */
-.empty { text-align:center; padding:56px 20px; }
-.empty-ico { font-size:44px; margin-bottom:14px; opacity:.35; }
-.empty-t { font-size:15px; font-weight:500; color:var(--text2); }
-.empty-s { font-size:12px; color:var(--text3); margin-top:5px; }
-
-/* TASK INFO */
-.task-main { font-weight:500; font-size:13.5px; }
-.task-sub  { font-size:11.5px; color:var(--text3); margin-top:2px; }
-
-/* ════════════════════════════════════════════════
-   PROJECT SHEET MODULE
-════════════════════════════════════════════════ */
-.ps-header {
-  display:flex; align-items:center; justify-content:space-between;
-  flex-wrap:wrap; gap:12px; margin-bottom:24px;
-}
-.ps-title { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; }
-.ps-sub   { font-size:13px; color:var(--text2); margin-top:3px; }
-.ps-actions { display:flex; gap:10px; flex-wrap:wrap; }
-
-.btn-sec {
-  display:inline-flex; align-items:center; gap:7px;
-  padding:9px 16px; border-radius:9px;
-  border:1px solid var(--border2); background:var(--surface);
-  color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500;
-  cursor:pointer; transition:var(--tr);
-}
-.btn-sec:hover { background:var(--surface2); border-color:var(--gold); color:var(--gold); }
-
-/* GSHEET LINK */
-.gsheet-bar {
-  display:flex; align-items:center; gap:10px;
-  padding:14px 18px;
-  background:var(--surface); border:1px solid var(--border);
-  border-radius:var(--radius); margin-bottom:20px;
-}
-.gsheet-ico { font-size:22px; flex-shrink:0; }
-.gsheet-inp {
-  flex:1; background:transparent; border:none;
-  color:var(--text); font-family:'DM Sans',sans-serif; font-size:13.5px;
-  outline:none;
-}
-.gsheet-inp::placeholder { color:var(--text3); }
-.gsheet-link-btn {
-  padding:7px 14px; border-radius:7px;
-  background:linear-gradient(135deg,#34a853,#5ec876);
-  border:none; color:#fff; font-size:12px; font-weight:600;
-  cursor:pointer; transition:var(--tr); white-space:nowrap;
-}
-.gsheet-link-btn:hover { transform:translateY(-1px); box-shadow:0 4px 14px rgba(52,168,83,0.3); }
-
-/* PS STATS */
-.ps-stats { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:24px; }
-.pss {
-  background:var(--surface); border:1px solid var(--border);
-  border-radius:var(--radius); padding:18px 16px; text-align:center;
-}
-.pss-n { font-family:'Syne',sans-serif; font-size:28px; font-weight:800; }
-.pss-l { font-size:11px; color:var(--text2); margin-top:4px; font-weight:500; }
-.pss.c1 .pss-n { color:var(--ongoing); }
-.pss.c2 .pss-n { color:var(--done); }
-.pss.c3 .pss-n { color:var(--pending); }
-.pss.c4 .pss-n { color:var(--text2); }
-.pss.c5 .pss-n { color:var(--gold); }
-
-/* DROP ZONE */
-.drop-zone {
-  border:2px dashed var(--border2); border-radius:var(--radius);
-  padding:40px 20px; text-align:center;
-  cursor:pointer; transition:var(--tr); margin-bottom:20px;
-}
-.drop-zone:hover, .drop-zone.drag { border-color:var(--gold); background:var(--gold-glow); }
-.drop-ico { font-size:36px; margin-bottom:10px; }
-.drop-t { font-size:15px; font-weight:500; margin-bottom:4px; }
-.drop-s { font-size:12px; color:var(--text3); }
-#excelInput { display:none; }
-
-/* PROJECT TABLE */
-.zoho-link {
-  color:var(--ongoing); font-size:12px; text-decoration:none;
-  display:inline-flex; align-items:center; gap:4px;
-  padding:3px 8px; border-radius:5px;
-  background:rgba(74,157,232,0.1); border:1px solid rgba(74,157,232,0.2);
-  transition:var(--tr);
-}
-.zoho-link:hover { background:rgba(74,157,232,0.2); }
-
-.bug-cell { text-align:center; }
-.bug-num { font-family:'Syne',sans-serif; font-size:15px; font-weight:700; }
-
-/* STATUS SELECT IN TABLE */
-.inline-sel {
-  background:var(--surface2); border:1px solid var(--border);
-  border-radius:6px; color:var(--text); font-family:'DM Sans',sans-serif;
-  font-size:12px; padding:3px 8px; cursor:pointer; outline:none;
-  transition:var(--tr);
-}
-.inline-sel:focus { border-color:var(--gold); }
-
-/* ════════════════════════════════════════════════
-   MODAL
-════════════════════════════════════════════════ */
-.ov {
-  position:fixed; inset:0;
-  background:rgba(0,0,0,0.65); backdrop-filter:blur(10px);
-  z-index:500; display:none; align-items:center; justify-content:center; padding:16px;
-}
-.ov.open { display:flex; }
-
-.modal {
-  width:100%; max-width:580px;
-  background:var(--surface); border:1px solid var(--border2);
-  border-radius:20px; padding:36px;
-  box-shadow:0 40px 120px rgba(0,0,0,0.7);
-  animation:riseUp .25s ease;
-  max-height:90vh; overflow-y:auto;
-}
-.modal::-webkit-scrollbar { width:4px; }
-.modal::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
-
-.modal-hd {
-  display:flex; align-items:center; justify-content:space-between; margin-bottom:26px;
-}
-.modal-title { font-family:'Syne',sans-serif; font-size:20px; font-weight:800; }
-.modal-x {
-  width:34px; height:34px; border-radius:8px;
-  border:1px solid var(--border); background:none;
-  color:var(--text2); font-size:16px; cursor:pointer;
-  display:grid; place-items:center; transition:var(--tr);
-}
-.modal-x:hover { color:var(--danger); border-color:rgba(232,73,106,0.3); }
-
-.mf { margin-bottom:16px; }
-.mf label {
-  display:block; font-size:11px; font-weight:600;
-  letter-spacing:.06em; text-transform:uppercase;
-  color:var(--text2); margin-bottom:7px;
-}
-.mf input, .mf select, .mf textarea {
-  width:100%; padding:11px 14px;
-  background:var(--surface2); border:1px solid var(--border);
-  border-radius:9px; color:var(--text);
-  font-family:'DM Sans',sans-serif; font-size:13.5px;
-  outline:none; transition:var(--tr); resize:vertical;
-}
-.mf input:focus, .mf select:focus, .mf textarea:focus {
-  border-color:var(--gold); box-shadow:0 0 0 3px var(--gold-glow);
-}
-.mf select option { background:var(--surface2); }
-
-.m2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-.m3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
-
-.modal-ft { display:flex; gap:10px; justify-content:flex-end; margin-top:24px; }
-.btn-ghost {
-  padding:10px 22px; border-radius:9px;
-  border:1px solid var(--border); background:none;
-  color:var(--text2); font-family:'DM Sans',sans-serif; font-size:13.5px;
-  cursor:pointer; transition:var(--tr);
-}
-.btn-ghost:hover { background:var(--surface2); color:var(--text); }
-.btn-save {
-  padding:10px 26px; border-radius:9px;
-  background:linear-gradient(135deg,var(--gold),var(--gold2));
-  border:none; color:#0a0c10;
-  font-family:'Syne',sans-serif; font-size:13.5px; font-weight:700;
-  cursor:pointer; transition:var(--tr);
-}
-.btn-save:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(212,168,67,0.3); }
-
-/* ════════════════════════════════════════════════
-   TOAST
-════════════════════════════════════════════════ */
-#toast {
-  position:fixed; bottom:28px; right:28px;
-  background:var(--surface); border:1px solid var(--border2);
-  border-radius:12px; padding:13px 18px;
-  display:flex; align-items:center; gap:9px;
-  font-size:13.5px; font-weight:500;
-  box-shadow:0 16px 48px rgba(0,0,0,0.4); z-index:9000;
-  transform:translateY(80px); opacity:0;
-  transition:.35s cubic-bezier(.34,1.56,.64,1);
-}
-#toast.show { transform:translateY(0); opacity:1; }
-.ti { font-size:17px; }
-
-/* ════════════════════════════════════════════════
-   RESPONSIVE
-════════════════════════════════════════════════ */
-@media(max-width:960px) {
-  .stats { grid-template-columns:repeat(2,1fr); }
-  .ps-stats { grid-template-columns:repeat(3,1fr); }
-  .sidebar { transform:translateX(-100%); }
-  .sidebar.open { transform:translateX(0); box-shadow:20px 0 60px rgba(0,0,0,0.4); }
-  .main { margin-left:0; }
-  .menu-btn { display:block; }
-  .m2,.m3 { grid-template-columns:1fr; }
-}
-@media(max-width:600px) {
-  .stats { grid-template-columns:1fr 1fr; }
-  .ps-stats { grid-template-columns:1fr 1fr; }
-  table th:nth-child(5), table td:nth-child(5),
-  table th:nth-child(6), table td:nth-child(6) { display:none; }
-  .topbar { padding:12px 16px; }
-  .page  { padding:16px; }
-}
-
-/* scrollbar global */
-::-webkit-scrollbar { width:6px; height:6px; }
-::-webkit-scrollbar-track { background:transparent; }
-::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
-</style>
+<!-- FIREBASE CONFIG -->
+<script src="firebase-config.js"></script>
 </head>
 <body>
 
-<!-- ══════════════════════════════════
-     LOGIN
-══════════════════════════════════ -->
-<div id="loginPage">
-  <div class="login-wrap">
-    <div class="login-brand">
-      <div class="login-brand-badge">
-        <div class="login-brand-icon">🔍</div>
-        <div class="login-brand-name">AQE Digital</div>
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━═════════ -->
+<!-- LOGIN SCREEN -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━═════════ -->
+<div id="login-screen">
+  <div class="login-bg"></div>
+  <div class="login-grid"></div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-mark">
+        <svg fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
+        </svg>
       </div>
-      <div class="login-h">QC Task Pro</div>
-      <div class="login-sub">Quality Control & Project Management Dashboard</div>
+      <h1>AQE</h1>
+      <p>QC Command Center</p>
     </div>
-    <div class="login-card">
-      <div class="lf">
-        <label>Username</label>
-        <div class="input-wrap">
-          <input type="text" id="lu" placeholder="Enter your username" autocomplete="username">
-        </div>
-      </div>
-      <div class="lf">
-        <label>Password</label>
-        <div class="input-wrap">
-          <input type="password" id="lp" placeholder="••••••••••" autocomplete="current-password" id="lp">
-          <button class="eye-btn" onclick="togglePass()" id="eyeBtn">👁</button>
-        </div>
-      </div>
-      <div class="login-err" id="lerr">⚠️ Invalid credentials. Please try again.</div>
-      <button class="login-submit" onclick="doLogin()">Sign In to Dashboard →</button>
+
+    <h2>Welcome Back</h2>
+    <p class="sub">Sign in to access your QC dashboard</p>
+
+    <div id="login-error" class="error-msg"></div>
+    <div id="config-notice" class="config-notice">
+      ⚠️ Firebase not configured. Please update the Firebase config in this file.
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Email Address</label>
+      <input type="email" id="login-email" class="form-input" placeholder="Enter your email" autocomplete="email">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" id="login-password" class="form-input" placeholder="Enter your password" autocomplete="current-password">
+    </div>
+
+    <button class="btn btn-primary btn-full" onclick="handleLogin()">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+      </svg>
+      Sign In
+    </button>
+
+    <div style="text-align:center; margin-top:24px;">
+      <button class="btn btn-ghost btn-sm" onclick="showSetup()">First time setup?</button>
     </div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════
-     APP
-══════════════════════════════════ -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━═════════ -->
+<!-- SETUP SCREEN -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━═════════ -->
+<div id="setup-screen">
+  <div class="login-bg"></div>
+  <div class="login-grid"></div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-mark">
+        <svg fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
+        </svg>
+      </div>
+      <h1>AQE</h1>
+      <p>QC Command Center</p>
+    </div>
+
+    <h2>Setup Admin Account</h2>
+    <p class="sub">Create your first administrator account</p>
+
+    <div id="setup-error" class="error-msg"></div>
+
+    <div class="form-group">
+      <label class="form-label">Full Name</label>
+      <input type="text" id="setup-name" class="form-input" placeholder="Enter your full name">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Email Address</label>
+      <input type="email" id="setup-email" class="form-input" placeholder="Enter your email">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" id="setup-password" class="form-input" placeholder="Create a strong password">
+    </div>
+
+    <button class="btn btn-primary btn-full" onclick="handleSetup()">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z"/>
+      </svg>
+      Create Admin Account
+    </button>
+
+    <div style="text-align:center; margin-top:24px;">
+      <button class="btn btn-ghost btn-sm" onclick="showLogin()">Already have an account?</button>
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━═════════ -->
+<!-- MAIN APP -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━═════════ -->
 <div id="app">
-
   <!-- SIDEBAR -->
-  <div class="sidebar" id="sidebar">
-    <div class="sidebar-head">
-      <div class="brand-row">
-        <div class="brand-icon">🔍</div>
-        <div class="brand-text">
-          <span>AQE Digital</span>
-          <div class="brand-sub">QC TASK PRO</div>
-        </div>
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">
+        <svg fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"/>
+        </svg>
+      </div>
+      <div class="logo-text">
+        <h2>AQE</h2>
+        <span>QC System</span>
       </div>
     </div>
 
-    <div class="nav-scroll">
-      <div class="nav-grp">
-        <div class="nav-grp-label">Task Manager</div>
-        <div class="nav-item active" onclick="goPage('tasks','all',this)">
-          <span class="nav-ico">📋</span> All Tasks
-          <span class="nav-badge nb-all" id="nb-all">0</span>
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-label">MENU</div>
+        <div class="nav-item active" onclick="switchTab('dashboard')">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+          </svg>
+          Dashboard
         </div>
-        <div class="nav-item" onclick="goPage('tasks','pending',this)">
-          <span class="nav-ico">⏳</span> Pending
-          <span class="nav-badge nb-p" id="nb-p">0</span>
+        <div class="nav-item" onclick="switchTab('tasks')">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+          Tasks
+          <span class="nav-badge" style="display:none;">0</span>
         </div>
-        <div class="nav-item" onclick="goPage('tasks','ongoing',this)">
-          <span class="nav-ico">🔄</span> Ongoing
-          <span class="nav-badge nb-o" id="nb-o">0</span>
+        <div class="nav-item" onclick="switchTab('projects')">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          Project Details
         </div>
-        <div class="nav-item" onclick="goPage('tasks','completed',this)">
-          <span class="nav-ico">✅</span> Completed
-          <span class="nav-badge nb-d" id="nb-d">0</span>
+        <!-- Temporarily Hidden Manage Excel Tab
+        <div class="nav-item" onclick="switchTab('manageexcel')">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 17v1a3 3 0 003 3h0a3 3 0 003-3v-1m-6 0h6m-6 0a3 3 0 01-3-3v-1m6 6V7a3 3 0 00-3-3h0a3 3 0 00-3 3v6m0 0V4a3 3 0 00-3-3h0a3 3 0 00-3 3v3"/>
+          </svg>
+          Manage Excel
+        </div>
+-->
+      </div>
+
+      <div class="nav-section" id="admin-nav-section" style="display:none;">
+        <div class="nav-section-label">Admin</div>
+        <div class="nav-item" onclick="switchTab('users')">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+          User Management
         </div>
       </div>
-      <div class="nav-grp">
-        <div class="nav-grp-label">Modules</div>
-        <div class="nav-item" onclick="goPage('projectsheet','all',this)">
-          <span class="nav-ico">📊</span> Project Sheet
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="sidebar-avatar">U</div>
+        <div class="user-details">
+          <div class="user-name" id="sidebar-name">Loading...</div>
+          <div class="user-role" id="sidebar-role">User</div>
         </div>
       </div>
-      <div class="nav-grp">
-        <div class="nav-grp-label">Versions</div>
-        <div id="verNav"></div>
-      </div>
+      <button class="btn btn-ghost btn-sm btn-full" onclick="handleLogout()">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+        </svg>
+        Logout
+      </button>
     </div>
+  </aside>
 
-    <div class="sidebar-foot">
-      <div class="user-row">
-        <div class="user-av" id="uAv">A</div>
-        <div class="user-info">
-          <div class="user-name" id="uName">Admin</div>
-          <div class="user-role">QC Manager</div>
-        </div>
-        <button class="logout-btn" onclick="logout()" title="Sign out">⏻</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MAIN -->
-  <div class="main">
-
+  <!-- MAIN CONTENT -->
+  <main id="main-content">
     <!-- TOPBAR -->
-    <div class="topbar">
-      <div class="topbar-left">
-        <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-        <div class="page-title" id="pageTitle">Task Dashboard</div>
+    <header class="topbar">
+      <div class="topbar-title">
+        <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" style="display:none;">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+        <h2 id="topbar-title">Dashboard</h2>
+        <p id="topbar-sub">System overview and statistics</p>
       </div>
-      <!-- THEME TOGGLE -->
-      <div class="theme-toggle">
-        <button class="theme-btn active" id="tbDark" onclick="setTheme('dark')">🌙 Dark</button>
-        <button class="theme-btn" id="tbLight" onclick="setTheme('light')">☀️ Light</button>
+      <div class="topbar-actions">
+        <div class="topbar-search" id="search-box" style="display:none;">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input type="text" id="search-input" placeholder="Search..." oninput="handleSearch()">
+        </div>
+        <div id="theme-selector-container"></div>
+        <button class="btn btn-primary btn-sm" id="topbar-action-btn" style="display:none;">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+          </svg>
+          Add New
+        </button>
       </div>
-      <div class="topbar-actions" id="taskTopActions">
-        <select class="ver-sel" id="vf" onchange="applyVer()">
-          <option value="all">All Versions</option>
-        </select>
-        <button class="btn-primary" onclick="openAddTask()">＋ Add Task</button>
-      </div>
-      <div class="topbar-actions" id="psTopActions" style="display:none">
-        <button class="btn-sec" onclick="triggerExcel()">📂 Upload Excel</button>
-        <button class="btn-primary" onclick="exportPS()">⬇ Export Excel</button>
-      </div>
-    </div>
+    </header>
 
-    <!-- ════ TASKS PAGE ════ -->
-    <div class="page active" id="page-tasks">
+    <!-- PAGE CONTENT -->
+    <div class="page-content">
+      <!-- DASHBOARD TAB -->
+      <div id="tab-dashboard" class="tab-pane active">
+        <div class="welcome-banner">
+          <div>
+            <h2 id="greeting">Good morning, User!</h2>
+            <p>Welcome to your QC command center. Here's what's happening today.</p>
+          </div>
+          <div class="time-badge">
+            <div class="time" id="current-time">00:00</div>
+            <div class="date" id="current-date">Mon, Jan 1</div>
+          </div>
+        </div>
 
-      <!-- STATS -->
-      <div class="stats">
-        <div class="stat s1"><div class="stat-ico">📋</div><div class="stat-n" id="s-all">0</div><div class="stat-lbl">Total Tasks</div></div>
-        <div class="stat s2"><div class="stat-ico">⏳</div><div class="stat-n" id="s-p">0</div><div class="stat-lbl">Pending</div></div>
-        <div class="stat s3"><div class="stat-ico">🔄</div><div class="stat-n" id="s-o">0</div><div class="stat-lbl">Ongoing</div></div>
-        <div class="stat s4"><div class="stat-ico">✅</div><div class="stat-n" id="s-d">0</div><div class="stat-lbl">Completed</div></div>
+        <div class="stats-grid">
+          <div class="stat-card total">
+            <div class="stat-label">Total Tasks</div>
+            <div class="stat-number" id="stat-total">0</div>
+            <div class="stat-icon">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
+            </div>
+          </div>
+          <div class="stat-card pending">
+            <div class="stat-label">Pending</div>
+            <div class="stat-number" id="stat-pending">0</div>
+            <div class="stat-icon">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+          </div>
+          <div class="stat-card ongoing">
+            <div class="stat-label">In Progress</div>
+            <div class="stat-number" id="stat-ongoing">0</div>
+            <div class="stat-icon">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+            </div>
+          </div>
+          <div class="stat-card complete">
+            <div class="stat-label">Completed</div>
+            <div class="stat-number" id="stat-complete">0</div>
+            <div class="stat-icon">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="table-card">
+            <div class="table-header">
+              <div>
+                <div class="section-title">Recent Projects</div>
+                <div class="section-sub">Latest project updates</div>
+              </div>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Project</th>
+                  <th>Bugs Found</th>
+                  <th>Bugs Done</th>
+                  <th>Status</th>
+                  <th>Updated</th>
+                </tr>
+              </thead>
+              <tbody id="recent-tasks-body">
+                <tr class="loading-row"><td colspan="5">Loading projects...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-card">
+            <div class="table-header">
+              <div>
+                <div class="section-title">Recent Completions</div>
+                <div class="section-sub">Latest project completions</div>
+              </div>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Task</th>
+                  <th>Completed By</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="recent-completions-body">
+                <tr class="loading-row"><td colspan="3">Loading completions...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
-      <!-- FILTERS -->
-      <div class="filter-row">
-        <button class="fbtn active" onclick="setF('all',this)">All</button>
-        <button class="fbtn" onclick="setF('pending',this)">⏳ Pending</button>
-        <button class="fbtn" onclick="setF('ongoing',this)">🔄 Ongoing</button>
-        <button class="fbtn" onclick="setF('completed',this)">✅ Completed</button>
-        <input class="search-inp" type="text" placeholder="🔍 Search tasks…" oninput="srch(this.value)">
+      <!-- TASKS TAB -->
+      <div id="tab-tasks" class="tab-pane">
+        <div class="table-card">
+          <div class="table-header">
+            <div class="table-header-left">
+              <div>
+                <div class="section-title">Task Management</div>
+                <div class="section-sub">Manage and track all your tasks</div>
+              </div>
+            </div>
+            <div class="table-header-right">
+              <div class="actions-group-with-excel">
+                <button class="btn btn-success btn-sm" onclick="exportTasksToExcel()" title="Export to Excel">
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                  </svg>
+                  Export
+                </button>
+                <button class="btn btn-warning btn-sm" onclick="triggerExcelImport()" title="Import from Excel">
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                  </svg>
+                  Import
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="openTaskModal()">
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                  </svg>
+                  Add New
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="table-header">
+            <div class="table-header-left">
+              <div class="filter-tabs">
+                <button class="filter-tab active" onclick="setTaskFilter('all')">All</button>
+                <button class="filter-tab" onclick="setTaskFilter('pending')">Pending</button>
+                <button class="filter-tab" onclick="setTaskFilter('ongoing')">In Progress</button>
+                <button class="filter-tab" onclick="setTaskFilter('complete')">Complete</button>
+              </div>
+            </div>
+            <div class="table-header-right">
+              <select class="form-select" style="width:120px;" onchange="setPriorityFilter(this.value)">
+                <option value="">All Priority</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+          </div>
+          <div class="multi-select-actions" id="multi-select-actions">
+            <div class="multi-select-info">
+              <span id="selected-count">0</span> tasks selected
+            </div>
+            <div class="multi-select-buttons">
+              <button class="multi-select-btn complete" onclick="bulkCompleteTasks()">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.5 12.75l6 6 9-13.5"/>
+                </svg>
+                Complete
+              </button>
+              <button class="multi-select-btn delete" onclick="bulkDeleteTasks()">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+                Delete
+              </button>
+              <button class="multi-select-btn export" onclick="bulkExportTasks()">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Export
+              </button>
+            </div>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>
+                  <input type="checkbox" id="select-all-tasks" onchange="toggleSelectAll()" style="margin-right: 8px;">
+                </th>
+                <th>Task</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Time/Due</th>
+                <th>Project</th>
+                <th>Assigned To</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tasks-body">
+              <tr class="loading-row"><td colspan="8">Loading tasks...</td></tr>
+            </tbody>
+          </table>
+          <!-- Pagination Controls -->
+          <div class="pagination-wrapper">
+            <div class="pagination-info">
+              <span id="tasks-pagination-info">Showing 1-10 of 0</span>
+            </div>
+            <div class="pagination-controls">
+              <button class="pagination-btn" onclick="prevTasksPage()" id="prev-tasks-btn" disabled>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+              </button>
+              <span class="pagination-pages">
+                <span id="tasks-current-page">1</span>
+                <span class="pagination-divider">/</span>
+                <span id="tasks-total-pages">1</span>
+              </span>
+              <button class="pagination-btn" onclick="nextTasksPage()" id="next-tasks-btn" disabled>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- TABLE -->
-      <div class="tbl-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Task</th>
-              <th>Status</th>
-              <th>Priority</th>
-              <th>Version</th>
-              <th>Assigned To</th>
-              <th>Assigned By</th>
-              <th>Time</th>
-              <th>Due Date</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="taskBody"></tbody>
-        </table>
-        <div class="empty" id="taskEmpty" style="display:none">
-          <div class="empty-ico">🗂️</div>
-          <div class="empty-t">No tasks found</div>
-          <div class="empty-s">Add a task using the button above</div>
+      <!-- PROJECTS TAB -->
+      <div id="tab-projects" class="tab-pane">
+        <div class="table-card">
+          <div class="table-header">
+            <div class="table-header-left">
+              <div>
+                <div class="section-title">Project Details</div>
+                <div class="section-sub">QC project tracking with bug counts</div>
+              </div>
+            </div>
+            <div class="table-header-right">
+              <div class="actions-group-with-excel">
+                <button class="btn btn-success btn-sm" onclick="exportProjectsToExcel()" title="Export to Excel">
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                  </svg>
+                  Export
+                </button>
+                <button class="btn btn-warning btn-sm" onclick="triggerProjectsImport()" title="Import from Excel">
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                  </svg>
+                  Import
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="bulkDeleteProjects()" title="Delete Selected">
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                  </svg>
+                  Delete
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="openProjectModal()">
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                  </svg>
+                  Add Project
+                </button>
+              </div>
+            </div>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>
+                  <input type="checkbox" id="select-all-projects" onchange="toggleAllProjects()" style="margin-right: 8px;">
+                </th>
+                <th>Project</th>
+                <th>🐛 Found</th>
+                <th>✅ Done</th>
+                <th>🚫 Ignored</th>
+                <th>🟢 Live</th>
+                <th>Pre QC</th>
+                <th>Status</th>
+                <th>Notes</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="projects-body">
+              <tr class="loading-row"><td colspan="10">Loading projects...</td></tr>
+            </tbody>
+          </table>
+          <!-- Pagination Controls -->
+          <div class="pagination-wrapper">
+            <div class="pagination-info">
+              <span id="projects-pagination-info">Showing 1-10 of 0</span>
+            </div>
+            <div class="pagination-controls">
+              <button class="pagination-btn" onclick="prevProjectsPage()" id="prev-projects-btn" disabled>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+              </button>
+              <span class="pagination-pages">
+                <span id="projects-current-page">1</span>
+                <span class="pagination-divider">/</span>
+                <span id="projects-total-pages">1</span>
+              </span>
+              <button class="pagination-btn" onclick="nextProjectsPage()" id="next-projects-btn" disabled>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MANAGE EXCEL TAB -->
+      <div id="tab-manageexcel" class="tab-pane">
+        <div class="table-card">
+          <div class="table-header">
+            <div class="table-header-left">
+              <div>
+                <div class="section-title">Manage Excel</div>
+                <div class="section-sub">Version-wise completed projects log</div>
+              </div>
+            </div>
+            <div class="table-header-right">
+              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('excel-file').click()">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                Import Excel
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="exportManageExcel()">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Export
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="openManualEntryModal()">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                </svg>
+                Manual Entry
+              </button>
+            </div>
+          </div>
+          <input type="file" id="excel-file" accept=".xlsx,.xls" style="display:none;" onchange="importExcel(event)">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Project / Task</th>
+                <th>Version</th>
+                <th>Completed By</th>
+                <th>Completed At</th>
+                <th>🐛 Found</th>
+                <th>✅ Done</th>
+                <th>🚫 Ignored</th>
+                <th>🟢 Live</th>
+                <th>Method</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="excel-body">
+              <tr class="loading-row"><td colspan="10">Loading log...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- USERS TAB (Admin Only) -->
+      <div id="tab-users" class="tab-pane">
+        <div class="table-card">
+          <div class="table-header">
+            <div class="table-header-left">
+              <div>
+                <div class="section-title" style="font-size:17px;">User Management</div>
+                <div class="section-sub">Manage team access and permissions</div>
+              </div>
+            </div>
+            <div class="table-header-right">
+              <button class="btn btn-danger btn-sm" onclick="bulkDeleteDuplicateUsers()">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+                Bulk Cleanup
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="renderFirebaseAuthUsers()">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+                Firebase Users
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="renderAuthCleanupQueue()">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+                Auth Cleanup
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="openUserModal()">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z"/>
+                </svg>
+                Create User
+              </button>
+            </div>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Created At</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-body">
+              <tr class="loading-row"><td colspan="6">Loading users...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
+  </main>
+</div>
 
-    <!-- ════ PROJECT SHEET PAGE ════ -->
-    <div class="page" id="page-projectsheet">
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━═════════ -->
+<!-- MODALS -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━═════════ -->
 
-      <div class="ps-header">
-        <div>
-          <div class="ps-title">📊 Project Sheet</div>
-          <div class="ps-sub">Track completed QC tasks — Bug counts, performers & live status</div>
-        </div>
-        <div class="ps-actions">
-          <button class="btn-sec" onclick="openAddPS()">＋ Add Entry</button>
-          <button class="btn-sec" onclick="triggerExcel()">📂 Upload Excel</button>
-          <button class="btn-primary" onclick="exportPS()">⬇ Export Excel</button>
-        </div>
-      </div>
-
-      <!-- GOOGLE SHEET LINK -->
-      <div class="gsheet-bar">
-        <div class="gsheet-ico">📗</div>
-        <input class="gsheet-inp" id="gsLink" type="url" placeholder="Paste Google Sheet link here to track your project sheet…" oninput="saveGS()">
-        <button class="gsheet-link-btn" onclick="openGS()">Open Sheet ↗</button>
-      </div>
-
-      <!-- DROP ZONE -->
-      <div class="drop-zone" id="dropZone" onclick="triggerExcel()" ondragover="dov(event)" ondrop="dop(event)" ondragleave="document.getElementById('dropZone').classList.remove('drag')">
-        <div class="drop-ico">📂</div>
-        <div class="drop-t">Drop Excel file here or click to upload</div>
-        <div class="drop-s">Supports .xlsx, .xls — Data will be auto-mapped to fields below</div>
-      </div>
-      <input type="file" id="excelInput" accept=".xlsx,.xls" onchange="handleExcel(this.files[0])">
-
-      <!-- PS STATS -->
-      <div class="ps-stats">
-        <div class="pss c1"><div class="pss-n" id="ps-total">0</div><div class="pss-l">Total Entries</div></div>
-        <div class="pss c2"><div class="pss-n" id="ps-done">0</div><div class="pss-l">Bugs Done</div></div>
-        <div class="pss c3"><div class="pss-n" id="ps-found">0</div><div class="pss-l">Bugs Found</div></div>
-        <div class="pss c4"><div class="pss-n" id="ps-ignore">0</div><div class="pss-l">Ignored</div></div>
-        <div class="pss c5"><div class="pss-n" id="ps-live">0</div><div class="pss-l">As Per Live</div></div>
-      </div>
-
-      <!-- PROJECT TABLE -->
-      <div class="tbl-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Sr No</th>
-              <th>Zoho Project URL</th>
-              <th>Performed By</th>
-              <th>Bugs Found</th>
-              <th>Bugs Done</th>
-              <th>Ignored</th>
-              <th>As Per Live</th>
-              <th>Status</th>
-              <th>Date</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="psBody"></tbody>
-        </table>
-        <div class="empty" id="psEmpty" style="display:none">
-          <div class="empty-ico">📊</div>
-          <div class="empty-t">No project entries yet</div>
-          <div class="empty-s">Add manually or upload an Excel file</div>
-        </div>
-      </div>
-    </div>
-
-  </div><!-- /main -->
-</div><!-- /app -->
-
-<!-- ══════════════════════════════════
-     ADD/EDIT TASK MODAL
-══════════════════════════════════ -->
-<div class="ov" id="taskModal">
+<!-- Task Modal -->
+<div class="modal-overlay" id="task-modal">
   <div class="modal">
-    <div class="modal-hd">
-      <div class="modal-title" id="taskModalTitle">Add New Task</div>
-      <button class="modal-x" onclick="closeModal('taskModal')">✕</button>
+    <div class="modal-header">
+      <div class="modal-title" id="task-modal-title">Add New Task</div>
+      <div class="modal-close" onclick="closeModal('task-modal')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </div>
     </div>
-    <div class="mf">
-      <label>Task Title *</label>
-      <input type="text" id="f-title" placeholder="Enter task title…">
-    </div>
-    <div class="mf">
-      <label>Description</label>
-      <textarea id="f-desc" rows="2" placeholder="Brief task description…"></textarea>
-    </div>
-    <div class="m2">
-      <div class="mf">
-        <label>Status</label>
-        <select id="f-status">
-          <option value="pending">⏳ Pending</option>
-          <option value="ongoing">🔄 Ongoing</option>
-          <option value="completed">✅ Completed</option>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Task Title *</label>
+        <input type="text" id="t-title" class="form-input" placeholder="Enter task title">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea id="t-desc" class="form-textarea" placeholder="Task description (optional)"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Priority *</label>
+          <select id="t-priority" class="form-select" required>
+            <option value="">Select priority...</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status *</label>
+          <select id="t-status" class="form-select" required>
+            <option value="">Select status...</option>
+            <option value="pending">Pending</option>
+            <option value="ongoing">In Progress</option>
+            <option value="complete">Complete</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Task Time</label>
+          <input type="datetime-local" id="t-time" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Due Date</label>
+          <input type="date" id="t-due" class="form-input">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Task Type *</label>
+        <select id="t-type" class="form-select" required>
+          <option value="">Select type...</option>
+          <option value="client">Client Work</option>
+          <option value="inhouse">Inhouse Work</option>
+          <!-- <option value="excel">Excel Work</option> -->
         </select>
       </div>
-      <div class="mf">
-        <label>Priority</label>
-        <select id="f-priority">
-          <option value="high">🔴 High</option>
-          <option value="medium" selected>🟡 Medium</option>
-          <option value="low">🟢 Low</option>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Task Allocated By *</label>
+          <input type="text" id="t-user-name" class="form-input" placeholder="Enter Task Allocated By name" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Project (Site) Name</label>
+          <input type="text" id="t-project-site" class="form-input" placeholder="Enter project/site name">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Project Zoho URL</label>
+        <input type="url" id="t-project-zoho" class="form-input" placeholder="https://zoho.com/...">
+      </div>
+      <div class="form-group" id="assign-to-group" style="display:none;">
+        <label class="form-label">Assign To</label>
+        <select id="t-assignee" class="form-select">
+          <option value="">Select user...</option>
         </select>
       </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea id="t-notes" class="form-textarea" placeholder="Additional notes (optional)"></textarea>
+      </div>
+      <div id="task-modal-error" class="error-msg"></div>
     </div>
-    <div class="m2">
-      <div class="mf">
-        <label>Assigned To (Kisne Kiya)</label>
-        <input type="text" id="f-to" placeholder="Team member name…">
-      </div>
-      <div class="mf">
-        <label>Assigned By (Kisne Diya)</label>
-        <input type="text" id="f-by" placeholder="Manager / Lead name…">
-      </div>
-    </div>
-    <div class="m3">
-      <div class="mf">
-        <label>Version</label>
-        <input type="text" id="f-ver" placeholder="e.g. v2.0">
-      </div>
-      <div class="mf">
-        <label>Time (Kab Kiya)</label>
-        <input type="datetime-local" id="f-time">
-      </div>
-      <div class="mf">
-        <label>Due Date</label>
-        <input type="date" id="f-date">
-      </div>
-    </div>
-    <div class="modal-ft">
-      <button class="btn-ghost" onclick="closeModal('taskModal')">Cancel</button>
-      <button class="btn-save" onclick="saveTask()">Save Task</button>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('task-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTask()">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+        </svg>
+        Save Task
+      </button>
     </div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════
-     ADD/EDIT PROJECT SHEET MODAL
-══════════════════════════════════ -->
-<div class="ov" id="psModal">
+<!-- Task Completion Modal -->
+<div class="modal-overlay" id="task-completion-modal">
   <div class="modal">
-    <div class="modal-hd">
-      <div class="modal-title" id="psModalTitle">Add Project Entry</div>
-      <button class="modal-x" onclick="closeModal('psModal')">✕</button>
-    </div>
-    <div class="mf">
-      <label>Zoho Project URL</label>
-      <input type="url" id="ps-url" placeholder="https://projects.zoho.com/…">
-    </div>
-    <div class="m2">
-      <div class="mf">
-        <label>Performed By (Kisne Perform Kiya)</label>
-        <input type="text" id="ps-by" placeholder="QC member name…">
-      </div>
-      <div class="mf">
-        <label>Date</label>
-        <input type="date" id="ps-date">
+    <div class="modal-header">
+      <div class="modal-title" id="completion-modal-title">Complete Task</div>
+      <div class="modal-close" onclick="handleCompletionModalClose()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
       </div>
     </div>
-    <div class="m3">
-      <div class="mf">
-        <label>Bugs Found (Kitne Mile)</label>
-        <input type="number" id="ps-found" placeholder="0" min="0">
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Task Completion Date & Time *</label>
+        <input type="datetime-local" id="completion-datetime" class="form-input">
       </div>
-      <div class="mf">
-        <label>Bugs Done (Kitne Done)</label>
-        <input type="number" id="ps-done" placeholder="0" min="0">
+      <div class="form-group">
+        <label class="form-label">🐛 Bugs Found *</label>
+        <input type="number" id="completion-bugs-found" class="form-input" placeholder="Number of bugs found" min="0" required>
       </div>
-      <div class="mf">
-        <label>Ignored (Kitne Ignore)</label>
-        <input type="number" id="ps-ignore" placeholder="0" min="0">
+      <div class="form-group">
+        <label class="form-label">✅ Bugs Done *</label>
+        <input type="number" id="completion-bugs-done" class="form-input" placeholder="Number of bugs completed" min="0" required>
       </div>
+      <div class="form-group">
+        <label class="form-label">🚫 Ignored</label>
+        <input type="number" id="completion-ignored" class="form-input" placeholder="Number of bugs ignored" min="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">🟢 As Per Live</label>
+        <input type="number" id="completion-live" class="form-input" placeholder="Bugs as per live" min="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Version</label>
+        <input type="text" id="completion-version" class="form-input" placeholder="Project version (optional)">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Completion Notes (Optional)</label>
+        <textarea id="completion-notes" class="form-textarea" placeholder="Add any completion notes..."></textarea>
+      </div>
+      <div id="task-completion-error" class="error-msg"></div>
     </div>
-    <div class="m2">
-      <div class="mf">
-        <label>As Per Live</label>
-        <select id="ps-live">
-          <option value="Yes">✅ Yes</option>
-          <option value="No">❌ No</option>
-          <option value="Partial">⚠️ Partial</option>
-        </select>
-      </div>
-      <div class="mf">
-        <label>Status</label>
-        <select id="ps-status">
-          <option value="Completed">✅ Completed</option>
-          <option value="In Review">🔄 In Review</option>
-          <option value="Pending">⏳ Pending</option>
-        </select>
-      </div>
-    </div>
-    <div class="mf">
-      <label>Notes</label>
-      <textarea id="ps-notes" rows="2" placeholder="Additional notes…"></textarea>
-    </div>
-    <div class="modal-ft">
-      <button class="btn-ghost" onclick="closeModal('psModal')">Cancel</button>
-      <button class="btn-save" onclick="savePS()">Save Entry</button>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="handleCompletionModalClose()">Cancel</button>
+      <button class="btn btn-primary" onclick="handleTaskCompletion()">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+        </svg>
+        Complete Task
+      </button>
     </div>
   </div>
 </div>
 
-<!-- TOAST -->
-<div id="toast"><span class="ti" id="ti">✅</span><span id="tm"></span></div>
+<!-- Task History Modal -->
+<div class="modal-overlay" id="task-history-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Task History</div>
+      <div class="modal-close" onclick="closeTaskHistory()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div id="task-history-content" class="history-content-wrapper">
+        <!-- History items will be inserted here -->
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeTaskHistory()">Close</button>
+    </div>
+  </div>
+</div>
 
+<!-- Task View Modal -->
+<div class="modal-overlay" id="task-view-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Task Details</div>
+      <div class="modal-close" onclick="closeTaskView()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div id="task-view-content" class="task-view-wrapper">
+        <!-- Task details will be inserted here -->
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeTaskView()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Project Modal -->
+<div class="modal-overlay" id="project-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="project-modal-title">Add Project</div>
+      <div class="modal-close" onclick="closeModal('project-modal')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Project Name *</label>
+        <input type="text" id="p-name" class="form-input" placeholder="Enter project name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Zoho Project Link</label>
+        <input type="url" id="p-zoho" class="form-input" placeholder="https://projects.zoho.com/...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select id="p-status" class="form-select">
+          <option value="pending">Pending</option>
+          <option value="ongoing">In Progress</option>
+          <option value="complete">Complete</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea id="p-notes" class="form-textarea" placeholder="Project notes (optional)"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">🐛 Bugs Found *</label>
+          <input type="number" id="p-bugs-found" class="form-input" placeholder="0" min="0" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">✅ Bugs Done *</label>
+          <input type="number" id="p-bugs-done" class="form-input" placeholder="0" min="0" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">🚫 Ignored</label>
+          <input type="number" id="p-ignored" class="form-input" placeholder="0" min="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">🟢 As Per Live</label>
+          <input type="number" id="p-live" class="form-input" placeholder="0" min="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Checklist URL</label>
+        <input type="url" id="p-checklist-url" class="form-input" placeholder="https://checklist.example.com/...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">
+          <input type="checkbox" id="p-pre-qa-done" style="margin-right: 8px;">
+          Is Pre QC Done?
+        </label>
+      </div>
+      <div id="project-modal-error" class="error-msg"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('project-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProject()">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+        </svg>
+        Save Project
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Manual Excel Entry Modal -->
+<div class="modal-overlay" id="excel-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Manual Completion Entry</div>
+      <div class="modal-close" onclick="closeModal('excel-modal')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Task Name *</label>
+        <input type="text" id="e-task" class="form-input" placeholder="Enter task name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Project Name</label>
+        <input type="text" id="e-project" class="form-input" placeholder="Enter project name">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Version</label>
+          <input type="text" id="e-version" class="form-input" placeholder="v1.0.0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">🐛 Bugs Found</label>
+          <input type="number" id="e-found" class="form-input" placeholder="0" min="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">✅ Bugs Done</label>
+          <input type="number" id="e-done" class="form-input" placeholder="0" min="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">🚫 Ignored</label>
+          <input type="number" id="e-ignored" class="form-input" placeholder="0" min="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">🟢 As Per Live</label>
+        <input type="number" id="e-live" class="form-input" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea id="e-notes" class="form-textarea" placeholder="Additional notes (optional)"></textarea>
+      </div>
+      <div id="excel-modal-error" class="error-msg"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('excel-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveManualEntry()">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+        </svg>
+        Add Entry
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- User Modal -->
+<div class="modal-overlay" id="user-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="user-modal-title">Create User</div>
+      <div class="modal-close" onclick="closeModal('user-modal')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Full Name *</label>
+        <input type="text" id="u-name" class="form-input" placeholder="Enter full name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email Address *</label>
+        <input type="email" id="u-email" class="form-input" placeholder="Enter email address">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Role *</label>
+        <select id="u-role" class="form-select">
+          <option value="user">User</option>
+          <option value="superadmin">Super Admin</option>
+        </select>
+      </div>
+      <div class="form-group" id="password-group">
+        <label class="form-label">Password *</label>
+        <div style="position: relative;">
+          <input type="password" id="u-password" class="form-input" placeholder="Create password" style="padding-right: 40px;">
+          <button type="button" onclick="togglePasswordVisibility('u-password')" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px;">
+            <svg id="u-password-icon" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            </svg>
+          </button>
+        </div>
+        <div id="password-requirements" style="margin-top: 8px; font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+          <div id="req-length" style="color: var(--text-muted);">• At least 6 characters</div>
+          <div id="req-letter" style="color: var(--text-muted);">• At least 1 letter</div>
+          <div id="req-number" style="color: var(--text-muted);">• At least 1 number</div>
+        </div>
+      </div>
+      <div id="user-modal-error" class="error-msg"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('user-modal')">Cancel</button>
+      <button class="btn btn-primary" id="user-save-btn" onclick="saveUser()">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+        </svg>
+        Create User
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase Users Modal -->
+<div class="modal-overlay" id="firebase-users-modal">
+  <div class="modal" style="width:900px;">
+    <div class="modal-header">
+      <div class="modal-title">🔥 Firebase Auth Users Management</div>
+      <div class="modal-close" onclick="closeModal('firebase-users-modal')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </div>
+    </div>
+    <div class="modal-body" style="padding:0;">
+      <div style="padding:20px;background:linear-gradient(135deg,var(--bg3),var(--bg2));border-bottom:1px solid var(--border);margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:16px;justify-content:space-between;">
+          <div>
+            <p style="font-size:14px;color:var(--text);margin:0;font-weight:600;">
+              🔥 Complete Firebase User Management
+            </p>
+            <p style="font-size:12px;color:var(--text-muted);margin-top:4px;">
+              Manage Firebase Auth users directly from the app. Delete duplicates, clean up accounts, and manage access.
+            </p>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="bulkDeleteDuplicateUsers()">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+            Bulk Cleanup
+          </button>
+        </div>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Created</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="firebase-users-body">
+          <tr class="loading-row"><td colspan="6">Loading Firebase Auth users...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('firebase-users-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Auth Cleanup Modal -->
+<div class="modal-overlay" id="auth-cleanup-modal">
+  <div class="modal" style="width:800px;">
+    <div class="modal-header">
+      <div class="modal-title">Firebase Auth Cleanup Queue</div>
+      <div class="modal-close" onclick="closeModal('auth-cleanup-modal')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </div>
+    </div>
+    <div class="modal-body" style="padding:0;">
+      <div style="padding:20px;background:var(--bg3);border-bottom:1px solid var(--border);margin-bottom:16px;">
+        <p style="font-size:13px;color:var(--text-muted);margin:0;">
+          🔥 <strong>Firebase Auth Cleanup Queue</strong> - Users deleted from the app but need manual Firebase Auth deletion
+        </p>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:4px;">
+          Go to <strong>Firebase Console → Authentication → Users</strong> and delete users manually using their email/UID
+        </p>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Requested</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="auth-cleanup-body">
+          <tr class="loading-row"><td colspan="5">Loading cleanup queue...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('auth-cleanup-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal" style="width:400px;">
+    <div class="modal-body" style="padding:28px;">
+      <div class="confirm-icon">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+        </svg>
+      </div>
+      <p class="confirm-text" id="confirm-text">Are you sure you want to delete this item? This action cannot be undone.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('confirm-modal')">Cancel</button>
+      <button class="btn btn-danger" id="confirm-ok-btn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+</body>
+
+<!-- JAVASCRIPT MODULES -->
+<!-- XLSX Library for Excel Export/Import -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+
+<script src="app-logic.js"></script>
+<script src="user-management.js"></script>
+<script src="ui-components.js"></script>
+<script src="task-history.js"></script>
+<script src="project-import-export.js"></script>
+<script src="excel-manager.js"></script>
+<script src="theme-manager.js"></script>
+<script src="multi-select-manager.js"></script>
+<script src="completion-handler.js"></script>
 <script>
-/* ══════════════════════════════════════════════
-   CREDENTIALS (set your own here)
-══════════════════════════════════════════════ */
-const CREDS = { admin:'admin@123', qcmanager:'qc@2024', aqe:'aqe@digital' };
-
-/* ══════════════════════════════════════════════
-   AUTH
-══════════════════════════════════════════════ */
-let CU = null;
-
-function togglePass() {
-  const i = document.getElementById('lp');
-  const b = document.getElementById('eyeBtn');
-  i.type = i.type === 'password' ? 'text' : 'password';
-  b.textContent = i.type === 'password' ? '👁' : '🙈';
-}
-
-function doLogin() {
-  const u = document.getElementById('lu').value.trim();
-  const p = document.getElementById('lp').value;
-  const e = document.getElementById('lerr');
-  if(CREDS[u] && CREDS[u] === p) {
-    CU = u; e.style.display = 'none';
-    document.getElementById('loginPage').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    document.getElementById('uName').textContent = u.charAt(0).toUpperCase()+u.slice(1);
-    document.getElementById('uAv').textContent = u.charAt(0).toUpperCase();
-    render();
-  } else {
-    e.style.display = 'block';
-  }
-}
-document.getElementById('lp').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-document.getElementById('lu').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-
-function logout() {
-  CU = null;
-  document.getElementById('loginPage').style.display = 'flex';
-  document.getElementById('app').style.display = 'none';
-}
-
-/* ══════════════════════════════════════════════
-   THEME
-══════════════════════════════════════════════ */
-let theme = localStorage.getItem('aqe_theme') || 'dark';
-applyTheme();
-
-function setTheme(t) {
-  theme = t; applyTheme();
-  localStorage.setItem('aqe_theme', t);
-}
-function applyTheme() {
-  document.documentElement.setAttribute('data-theme', theme);
-  document.getElementById('tbDark')  && document.getElementById('tbDark').classList.toggle('active',  theme==='dark');
-  document.getElementById('tbLight') && document.getElementById('tbLight').classList.toggle('active', theme==='light');
-}
-
-/* ══════════════════════════════════════════════
-   DATA
-══════════════════════════════════════════════ */
-let tasks   = JSON.parse(localStorage.getItem('aqe_tasks')   || '[]');
-let psRows  = JSON.parse(localStorage.getItem('aqe_ps')      || '[]');
-let gsLink  = localStorage.getItem('aqe_gs') || '';
-
-let tFilter = 'all';
-let tVer    = 'all';
-let tSearch = '';
-let editTid = null;
-let editPid = null;
-
-function saveTasks() { localStorage.setItem('aqe_tasks', JSON.stringify(tasks)); }
-function savePS_()   { localStorage.setItem('aqe_ps',    JSON.stringify(psRows)); }
-function saveGS()    {
-  gsLink = document.getElementById('gsLink').value;
-  localStorage.setItem('aqe_gs', gsLink);
-}
-
-/* ══════════════════════════════════════════════
-   NAVIGATION
-══════════════════════════════════════════════ */
-let currentPage = 'tasks';
-
-function goPage(page, filter, el) {
-  currentPage = page;
-  // hide all pages
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.getElementById('page-'+page).classList.add('active');
-  // nav active
-  document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
-  el.classList.add('active');
-  // topbar
-  document.getElementById('taskTopActions').style.display = page==='tasks' ? 'flex' : 'none';
-  document.getElementById('psTopActions').style.display   = page==='projectsheet' ? 'flex' : 'none';
-  // title
-  const titles = { tasks:'Task Dashboard', projectsheet:'Project Sheet' };
-  document.getElementById('pageTitle').textContent = titles[page] || page;
-
-  if(page==='tasks') { if(filter!=='all') setF(filter); renderTasks(); }
-  if(page==='projectsheet') { renderPS(); }
-
-  // close sidebar on mobile
-  if(window.innerWidth<=960) document.getElementById('sidebar').classList.remove('open');
-}
-
-/* ══════════════════════════════════════════════
-   RENDER
-══════════════════════════════════════════════ */
-function render() {
-  updateStats();
-  updateVersionNav();
-  renderTasks();
-  renderPS();
-  // load gs link
-  document.getElementById('gsLink').value = gsLink;
-}
-
-function updateStats() {
-  const all=tasks.length, p=tasks.filter(t=>t.status==='pending').length,
-        o=tasks.filter(t=>t.status==='ongoing').length, d=tasks.filter(t=>t.status==='completed').length;
-  document.getElementById('s-all').textContent = all;
-  document.getElementById('s-p').textContent   = p;
-  document.getElementById('s-o').textContent   = o;
-  document.getElementById('s-d').textContent   = d;
-  document.getElementById('nb-all').textContent = all;
-  document.getElementById('nb-p').textContent   = p;
-  document.getElementById('nb-o').textContent   = o;
-  document.getElementById('nb-d').textContent   = d;
-}
-
-function updateVersionNav() {
-  const vs = [...new Set(tasks.map(t=>t.ver).filter(Boolean))].sort();
-  const vf  = document.getElementById('vf');
-  const cur = vf.value;
-  vf.innerHTML = '<option value="all">All Versions</option>' +
-    vs.map(v=>`<option value="${v}"${v===cur?' selected':''}>${v}</option>`).join('');
-  document.getElementById('verNav').innerHTML = vs.map(v=>
-    `<div class="nav-item" onclick="filterVer('${v}',this)">
-       <span class="nav-ico">🏷️</span> ${esc(v)}
-     </div>`
-  ).join('');
-}
-
-/* ── TASK TABLE ── */
-function renderTasks() {
-  let list = [...tasks];
-  if(tFilter!=='all') list = list.filter(t=>t.status===tFilter);
-  if(tVer!=='all')    list = list.filter(t=>t.ver===tVer);
-  if(tSearch)         list = list.filter(t=>
-    t.title.toLowerCase().includes(tSearch) ||
-    (t.desc||'').toLowerCase().includes(tSearch) ||
-    (t.to||'').toLowerCase().includes(tSearch) ||
-    (t.by||'').toLowerCase().includes(tSearch)
-  );
-  const tb = document.getElementById('taskBody');
-  const em = document.getElementById('taskEmpty');
-  if(!list.length){ tb.innerHTML=''; em.style.display='block'; return; }
-  em.style.display = 'none';
-  const slbl = {pending:'Pending',ongoing:'Ongoing',completed:'Completed'};
-  const plbl = {high:'High',medium:'Medium',low:'Low'};
-  tb.innerHTML = list.map((t,i)=>`
-    <tr>
-      <td style="color:var(--text3);font-size:12px">${i+1}</td>
-      <td>
-        <div class="task-main">${esc(t.title)}</div>
-        ${t.desc?`<div class="task-sub">${esc(t.desc)}</div>`:''}
-      </td>
-      <td><span class="spl spl-${t.status}">${slbl[t.status]}</span></td>
-      <td><span class="ppl ppl-${t.priority}">${plbl[t.priority]}</span></td>
-      <td>${t.ver?`<span class="vtag">${esc(t.ver)}</span>`:'-'}</td>
-      <td><div class="task-sub">👤 ${esc(t.to||'-')}</div></td>
-      <td><div class="task-sub">🎯 ${esc(t.by||'-')}</div></td>
-      <td><div class="task-sub" style="font-size:11px">${t.time?fmtDT(t.time):'-'}</div></td>
-      <td style="font-size:12.5px;color:var(--text3)">${t.date||'-'}</td>
-      <td>
-        <div class="actb">
-          <button class="ab" onclick="editTask('${t.id}')" title="Edit">✏️</button>
-          <button class="ab ok" onclick="nextStatus('${t.id}')" title="Next Status">⟳</button>
-          <button class="ab del" onclick="delTask('${t.id}')" title="Delete">🗑</button>
-        </div>
-      </td>
-    </tr>`).join('');
-}
-
-/* ── PROJECT SHEET TABLE ── */
-function renderPS() {
-  const tb = document.getElementById('psBody');
-  const em = document.getElementById('psEmpty');
-  // stats
-  const tf  = psRows.length;
-  const bf  = psRows.reduce((a,r)=>a+((+r.found)||0),0);
-  const bd  = psRows.reduce((a,r)=>a+((+r.done)||0),0);
-  const ig  = psRows.reduce((a,r)=>a+((+r.ignore)||0),0);
-  const lv  = psRows.filter(r=>r.live==='Yes').length;
-  document.getElementById('ps-total').textContent  = tf;
-  document.getElementById('ps-done').textContent   = bd;
-  document.getElementById('ps-found').textContent  = bf;
-  document.getElementById('ps-ignore').textContent = ig;
-  document.getElementById('ps-live').textContent   = lv;
-
-  if(!tf){ tb.innerHTML=''; em.style.display='block'; return; }
-  em.style.display = 'none';
-
-  const liveCls = {Yes:'color:var(--done)',No:'color:var(--danger)',Partial:'color:var(--pending)'};
-  const liveIco = {Yes:'✅',No:'❌',Partial:'⚠️'};
-  const stCls   = {Completed:'spl-completed',  'In Review':'spl-ongoing', Pending:'spl-pending'};
-
-  tb.innerHTML = psRows.map((r,i)=>`
-    <tr>
-      <td style="color:var(--text3);font-size:12px;font-family:'Syne',sans-serif">${i+1}</td>
-      <td>${r.url?`<a class="zoho-link" href="${esc(r.url)}" target="_blank" rel="noopener">🔗 Open Project ↗</a>`:'-'}</td>
-      <td><div class="task-main">${esc(r.by||'-')}</div></td>
-      <td class="bug-cell"><span class="bug-num" style="color:var(--pending)">${r.found||0}</span></td>
-      <td class="bug-cell"><span class="bug-num" style="color:var(--done)">${r.done||0}</span></td>
-      <td class="bug-cell"><span class="bug-num" style="color:var(--text3)">${r.ignore||0}</span></td>
-      <td style="font-weight:600;${liveCls[r.live]||''}">${liveIco[r.live]||''} ${r.live||'-'}</td>
-      <td><span class="spl ${stCls[r.status]||'spl-pending'}">${r.status||'Pending'}</span></td>
-      <td style="font-size:12px;color:var(--text3)">${r.date||'-'}</td>
-      <td>
-        <div class="actb">
-          <button class="ab" onclick="editPS('${r.id}')" title="Edit">✏️</button>
-          <button class="ab del" onclick="delPS('${r.id}')" title="Delete">🗑</button>
-        </div>
-      </td>
-    </tr>`).join('');
-}
-
-/* ══════════════════════════════════════════════
-   FILTER / SEARCH
-══════════════════════════════════════════════ */
-function setF(f, el) {
-  tFilter = f;
-  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
-  if(el) el.classList.add('active');
-  renderTasks();
-}
-function filterVer(v, el) {
-  tVer = v;
-  document.getElementById('vf').value = v;
-  renderTasks();
-  document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
-  el.classList.add('active');
-}
-function applyVer()   { tVer = document.getElementById('vf').value; renderTasks(); }
-function srch(q)      { tSearch = q.toLowerCase(); renderTasks(); }
-
-/* ══════════════════════════════════════════════
-   TASK CRUD
-══════════════════════════════════════════════ */
-function openAddTask() {
-  editTid = null;
-  document.getElementById('taskModalTitle').textContent = 'Add New Task';
-  ['f-title','f-desc','f-to','f-by','f-ver','f-time','f-date'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('f-status').value   = 'pending';
-  document.getElementById('f-priority').value = 'medium';
-  document.getElementById('taskModal').classList.add('open');
-}
-function editTask(id) {
-  const t = tasks.find(x=>x.id===id); if(!t) return;
-  editTid = id;
-  document.getElementById('taskModalTitle').textContent = 'Edit Task';
-  document.getElementById('f-title').value    = t.title;
-  document.getElementById('f-desc').value     = t.desc||'';
-  document.getElementById('f-status').value   = t.status;
-  document.getElementById('f-priority').value = t.priority;
-  document.getElementById('f-to').value       = t.to||'';
-  document.getElementById('f-by').value       = t.by||'';
-  document.getElementById('f-ver').value      = t.ver||'';
-  document.getElementById('f-time').value     = t.time||'';
-  document.getElementById('f-date').value     = t.date||'';
-  document.getElementById('taskModal').classList.add('open');
-}
-function saveTask() {
-  const title = document.getElementById('f-title').value.trim();
-  if(!title){ showToast('⚠️','Please enter a task title'); return; }
-  const data = {
-    title,
-    desc:     document.getElementById('f-desc').value.trim(),
-    status:   document.getElementById('f-status').value,
-    priority: document.getElementById('f-priority').value,
-    to:       document.getElementById('f-to').value.trim(),
-    by:       document.getElementById('f-by').value.trim(),
-    ver:      document.getElementById('f-ver').value.trim(),
-    time:     document.getElementById('f-time').value,
-    date:     document.getElementById('f-date').value,
-  };
-  if(editTid) {
-    const idx = tasks.findIndex(x=>x.id===editTid);
-    tasks[idx] = {...tasks[idx], ...data};
-    showToast('✅','Task updated!');
-  } else {
-    tasks.push({...data, id: uid()});
-    showToast('✅','Task added!');
-  }
-  saveTasks(); closeModal('taskModal'); updateStats(); updateVersionNav(); renderTasks();
-}
-function delTask(id) {
-  if(!confirm('Delete this task?')) return;
-  tasks = tasks.filter(t=>t.id!==id);
-  saveTasks(); updateStats(); updateVersionNav(); renderTasks();
-  showToast('🗑️','Task deleted');
-}
-function nextStatus(id) {
-  const t = tasks.find(x=>x.id===id); if(!t) return;
-  const c = ['pending','ongoing','completed'];
-  t.status = c[(c.indexOf(t.status)+1)%3];
-  saveTasks(); updateStats(); renderTasks();
-  showToast('🔄',`Status → ${t.status}`);
-}
-
-/* ══════════════════════════════════════════════
-   PROJECT SHEET CRUD
-══════════════════════════════════════════════ */
-function openAddPS() {
-  editPid = null;
-  document.getElementById('psModalTitle').textContent = 'Add Project Entry';
-  ['ps-url','ps-by','ps-date'].forEach(id=>document.getElementById(id).value='');
-  ['ps-found','ps-done','ps-ignore'].forEach(id=>document.getElementById(id).value=0);
-  document.getElementById('ps-live').value   = 'Yes';
-  document.getElementById('ps-status').value = 'Completed';
-  document.getElementById('ps-notes').value  = '';
-  document.getElementById('psModal').classList.add('open');
-}
-function editPS(id) {
-  const r = psRows.find(x=>x.id===id); if(!r) return;
-  editPid = id;
-  document.getElementById('psModalTitle').textContent = 'Edit Project Entry';
-  document.getElementById('ps-url').value    = r.url||'';
-  document.getElementById('ps-by').value     = r.by||'';
-  document.getElementById('ps-date').value   = r.date||'';
-  document.getElementById('ps-found').value  = r.found||0;
-  document.getElementById('ps-done').value   = r.done||0;
-  document.getElementById('ps-ignore').value = r.ignore||0;
-  document.getElementById('ps-live').value   = r.live||'Yes';
-  document.getElementById('ps-status').value = r.status||'Completed';
-  document.getElementById('ps-notes').value  = r.notes||'';
-  document.getElementById('psModal').classList.add('open');
-}
-function savePS() {
-  const data = {
-    url:    document.getElementById('ps-url').value.trim(),
-    by:     document.getElementById('ps-by').value.trim(),
-    date:   document.getElementById('ps-date').value,
-    found:  +document.getElementById('ps-found').value||0,
-    done:   +document.getElementById('ps-done').value||0,
-    ignore: +document.getElementById('ps-ignore').value||0,
-    live:   document.getElementById('ps-live').value,
-    status: document.getElementById('ps-status').value,
-    notes:  document.getElementById('ps-notes').value.trim(),
-  };
-  if(editPid) {
-    const idx = psRows.findIndex(x=>x.id===editPid);
-    psRows[idx] = {...psRows[idx], ...data};
-    showToast('✅','Entry updated!');
-  } else {
-    psRows.push({...data, id: uid()});
-    showToast('✅','Entry added!');
-  }
-  savePS_(); closeModal('psModal'); renderPS();
-}
-function delPS(id) {
-  if(!confirm('Delete this entry?')) return;
-  psRows = psRows.filter(r=>r.id!==id);
-  savePS_(); renderPS();
-  showToast('🗑️','Entry deleted');
-}
-
-/* ══════════════════════════════════════════════
-   EXCEL UPLOAD
-══════════════════════════════════════════════ */
-function triggerExcel() { document.getElementById('excelInput').click(); }
-
-function dov(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('drag'); }
-function dop(e) {
-  e.preventDefault();
-  document.getElementById('dropZone').classList.remove('drag');
-  const f = e.dataTransfer.files[0];
-  if(f) handleExcel(f);
-}
-
-function handleExcel(file) {
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    try {
-      const wb   = XLSX.read(e.target.result, {type:'array'});
-      const ws   = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
-      let added = 0;
-      rows.forEach(r => {
-        const entry = {
-          id:     uid(),
-          url:    r['Zoho Project URL'] || r['zoho_url'] || r['URL'] || '',
-          by:     r['Performed By'] || r['Kisne Perform Kiya'] || r['By'] || '',
-          date:   r['Date'] || '',
-          found:  +r['Bugs Found'] || +r['bugs_found'] || 0,
-          done:   +r['Bugs Done']  || +r['bugs_done']  || 0,
-          ignore: +r['Ignored']    || +r['ignore']      || 0,
-          live:   r['As Per Live'] || r['live'] || 'Yes',
-          status: r['Status'] || 'Completed',
-          notes:  r['Notes'] || '',
-        };
-        psRows.push(entry);
-        added++;
-      });
-      savePS_(); renderPS();
-      showToast('📊',`${added} rows imported from Excel!`);
-    } catch(err) {
-      showToast('⚠️','Could not read Excel file');
+  // Initialize theme selector after page load
+  document.addEventListener('DOMContentLoaded', function() {
+    // Create and render theme selector
+    const themeContainer = document.getElementById('theme-selector-container');
+    if (themeContainer && window.createThemeSelector) {
+      themeContainer.innerHTML = window.createThemeSelector();
     }
-  };
-  reader.readAsArrayBuffer(file);
-  document.getElementById('excelInput').value = '';
-}
-
-/* ══════════════════════════════════════════════
-   EXCEL EXPORT
-══════════════════════════════════════════════ */
-function exportPS() {
-  if(!psRows.length){ showToast('⚠️','No data to export'); return; }
-  const data = psRows.map((r,i)=>({
-    'Sr No':              i+1,
-    'Zoho Project URL':   r.url||'',
-    'Performed By':       r.by||'',
-    'Bugs Found':         r.found||0,
-    'Bugs Done':          r.done||0,
-    'Ignored':            r.ignore||0,
-    'As Per Live':        r.live||'',
-    'Status':             r.status||'',
-    'Date':               r.date||'',
-    'Notes':              r.notes||'',
-  }));
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Project Sheet');
-  // Style header row width
-  ws['!cols'] = [{wch:6},{wch:40},{wch:20},{wch:12},{wch:12},{wch:10},{wch:12},{wch:14},{wch:12},{wch:30}];
-  XLSX.writeFile(wb, `AQE_ProjectSheet_${today()}.xlsx`);
-  showToast('⬇','Excel exported successfully!');
-}
-
-/* ══════════════════════════════════════════════
-   GOOGLE SHEET
-══════════════════════════════════════════════ */
-function openGS() {
-  const link = document.getElementById('gsLink').value.trim();
-  if(!link){ showToast('⚠️','Paste a Google Sheet link first'); return; }
-  window.open(link, '_blank');
-}
-
-/* ══════════════════════════════════════════════
-   MODAL
-══════════════════════════════════════════════ */
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-document.querySelectorAll('.ov').forEach(ov=>{
-  ov.addEventListener('click', e=>{ if(e.target===ov) ov.classList.remove('open'); });
-});
-
-/* ══════════════════════════════════════════════
-   TOAST
-══════════════════════════════════════════════ */
-let toastT;
-function showToast(icon, msg) {
-  document.getElementById('ti').textContent = icon;
-  document.getElementById('tm').textContent = msg;
-  const t = document.getElementById('toast');
-  t.classList.add('show');
-  clearTimeout(toastT);
-  toastT = setTimeout(()=>t.classList.remove('show'), 3200);
-}
-
-/* ══════════════════════════════════════════════
-   SIDEBAR MOBILE
-══════════════════════════════════════════════ */
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
-
-/* ══════════════════════════════════════════════
-   UTILS
-══════════════════════════════════════════════ */
-function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function today(){ return new Date().toISOString().slice(0,10); }
-function fmtDT(dt) {
-  if(!dt) return '-';
-  try {
-    return new Date(dt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'});
-  } catch{ return dt; }
-}
-
-/* ══════════════════════════════════════════════
-   SEED DATA
-══════════════════════════════════════════════ */
-if(!tasks.length) {
-  tasks = [
-    {id:uid(),title:'Homepage QC Testing',desc:'Full QC of homepage UI on all browsers',status:'completed',priority:'high',to:'Riya Sharma',by:'Arjun Mehta',ver:'v2.0',time:'2025-02-10T10:30',date:'2025-02-10'},
-    {id:uid(),title:'Checkout Flow Bugs',desc:'Payment gateway and cart edge cases',status:'ongoing',priority:'high',to:'Vikram Patel',by:'Arjun Mehta',ver:'v2.1',time:'2025-02-18T09:00',date:'2025-02-25'},
-    {id:uid(),title:'Mobile Responsive Check',desc:'iOS and Android viewport testing',status:'ongoing',priority:'medium',to:'Sneha Joshi',by:'Pooja Singh',ver:'v2.1',time:'2025-02-20T14:00',date:'2025-02-28'},
-    {id:uid(),title:'SEO Meta Tags Review',desc:'Title, description, OG tags validation',status:'pending',priority:'medium',to:'Rahul Gupta',by:'Arjun Mehta',ver:'v3.0',time:'',date:'2025-03-05'},
-    {id:uid(),title:'API Response Testing',desc:'Test all REST endpoints with Postman',status:'pending',priority:'high',to:'Ankit Das',by:'Pooja Singh',ver:'v3.0',time:'',date:'2025-03-10'},
-    {id:uid(),title:'404 Page & Error States',desc:'All error pages and edge UI states',status:'pending',priority:'low',to:'Riya Sharma',by:'Arjun Mehta',ver:'v2.2',time:'',date:'2025-03-15'},
-  ];
-  saveTasks();
-}
-if(!psRows.length) {
-  psRows = [
-    {id:uid(),url:'https://projects.zoho.com/portal/aqedigital/task/12001',by:'Riya Sharma',date:'2025-02-10',found:12,done:10,ignore:2,live:'Yes',status:'Completed',notes:'All major bugs fixed'},
-    {id:uid(),url:'https://projects.zoho.com/portal/aqedigital/task/12002',by:'Vikram Patel',date:'2025-02-18',found:8,done:6,ignore:1,live:'Partial',status:'In Review',notes:'2 bugs pending design approval'},
-    {id:uid(),url:'https://projects.zoho.com/portal/aqedigital/task/12003',by:'Sneha Joshi',date:'2025-02-20',found:5,done:5,ignore:0,live:'Yes',status:'Completed',notes:'Clean pass'},
-  ];
-  savePS_();
-}
-
-/* INIT */
-applyTheme();
+  });
 </script>
 </body>
+</html>
+
+<!-- INITIALIZATION -->
+<script>
+  // Initialize app when Firebase is ready
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Page loaded, checking Firebase...');
+    
+    // Add global event listener for ALL action buttons with tab context
+    document.addEventListener('click', function(e) {
+      const btn = e.target.closest('.action-btn');
+      if (!btn) return;
+      
+      // Get current active tab
+      const activeTab = document.querySelector('.tab-pane.active')?.id;
+      console.log('🔘 Button clicked in tab:', activeTab);
+      
+      // Don't stop propagation - allow multiple clicks and normal event flow
+      
+      // TASK TAB HANDLERS
+      if (activeTab === 'tab-tasks') {
+        if (btn.dataset.action && btn.dataset.taskId) {
+          const action = btn.dataset.action;
+          const taskId = btn.dataset.taskId;
+          const taskTitle = btn.dataset.taskTitle;
+          
+          console.log(`🔘 Task ${action} button clicked for task:`, taskId);
+          
+          switch(action) {
+            case 'view':
+              viewTaskDetails(taskId);
+              break;
+            case 'edit':
+              editTask(taskId);
+              break;
+            case 'complete':
+              openTaskCompletionModal(taskId);
+              break;
+            case 'history':
+              showTaskHistory(taskId);
+              break;
+            case 'delete':
+              deleteTask(taskId, taskTitle);
+              break;
+          }
+        }
+      }
+      
+      // PROJECT DETAILS TAB HANDLERS  
+      else if (activeTab === 'tab-projects') {
+        // Handle excel entry action buttons (task completion entries)
+        if (btn.dataset.action && btn.dataset.entryId) {
+          const action = btn.dataset.action;
+          const entryId = btn.dataset.entryId;
+          
+          console.log(`🔘 Excel ${action} button clicked for entry:`, entryId);
+          
+          switch(action) {
+            case 'excel-view':
+              viewExcelEntry(entryId);
+              break;
+            case 'excel-edit':
+              editExcelEntry(entryId);
+              break;
+            case 'excel-delete':
+              deleteExcelEntry(entryId);
+              break;
+            case 'history':
+              if (btn.dataset.taskId) {
+                showTaskHistory(btn.dataset.taskId);
+              }
+              break;
+          }
+        }
+        
+        // Handle manual project action buttons
+        if (btn.dataset.action && btn.dataset.projectId) {
+          const action = btn.dataset.action;
+          const projectId = btn.dataset.projectId;
+          const projectName = btn.dataset.projectName;
+          
+          console.log(`🔘 Project ${action} button clicked for project:`, projectId);
+          
+          switch(action) {
+            case 'project-view':
+              viewProjectDetails(projectId);
+              break;
+            case 'project-edit':
+              editProject(projectId);
+              break;
+            case 'project-delete':
+              deleteProject(projectId, projectName);
+              break;
+            case 'project-history':
+              showProjectHistory(projectId);
+              break;
+          }
+        }
+        
+        // Handle any remaining project action buttons with onclick
+        if (btn.onclick && !btn.dataset.action) {
+          console.log('🔘 Project action button clicked via onclick');
+          // Let the onclick handler execute normally
+        }
+      }
+      
+      // USER MANAGEMENT TAB HANDLERS
+      else if (activeTab === 'tab-users') {
+        if (btn.onclick) {
+          console.log('🔘 User action button clicked via onclick');
+          // Let the onclick handler execute normally
+        }
+      }
+      
+      // MANAGE EXCEL TAB HANDLERS
+      else if (activeTab === 'tab-manageexcel') {
+        if (btn.onclick) {
+          console.log('🔘 Excel action button clicked via onclick');
+          // Let the onclick handler execute normally
+        }
+      }
+    });
+    
+    // Wait for Firebase to load
+    setTimeout(() => {
+      if (typeof firebase !== 'undefined') {
+        console.log('📦 Firebase SDK loaded');
+        
+        if (typeof isConfigured !== 'undefined' && isConfigured) {
+          console.log('🔥 Firebase configured, starting app...');
+          
+          // Debug: Check Firebase connection
+          setTimeout(() => {
+            if (window.db) {
+              console.log('🔥 Firebase Connected!');
+              console.log('📊 Project ID:', 'aqe-qc-system');
+              console.log('🔧 Firebase version:', firebase.SDK_VERSION);
+              
+              // Check collections
+              if (window.db && window.db.collection) {
+                window.db.collection('tasks').get().then(snapshot => {
+                  console.log('📋 Tasks in Firebase:', snapshot.size);
+                  snapshot.forEach(doc => {
+                    console.log('  -', doc.id, ':', doc.data().title);
+                  });
+                }).catch(err => console.error('Error fetching tasks:', err));
+              }
+              
+            } else {
+              console.error('❌ Firebase not connected');
+            }
+          }, 2000);
+          
+        } else {
+          console.log('⚠️ Firebase not configured');
+        }
+      } else {
+        console.error('❌ Firebase SDK not loaded');
+        // Show error message
+        const noticeEl = document.getElementById('config-notice');
+        if (noticeEl) {
+          noticeEl.style.display = 'block';
+          noticeEl.innerHTML = '⚠️ Firebase SDK failed to load. Please refresh the page or check your internet connection.';
+        }
+      }
+    }, 1000);
+  });
+</script>
+
+<script>
+  // Toggle password visibility
+  function togglePasswordVisibility(inputId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(inputId + '-icon');
+    
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.innerHTML = `
+        <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29-3.29"/>
+      `;
+    } else {
+      input.type = 'password';
+      icon.innerHTML = `
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+      `;
+    }
+  }
+
+  // Password validation feedback
+  function updatePasswordRequirements(password) {
+    const reqLength = document.getElementById('req-length');
+    const reqLetter = document.getElementById('req-letter');
+    const reqNumber = document.getElementById('req-number');
+    
+    if (!reqLength || !reqLetter || !reqNumber) return;
+    
+    // Length requirement
+    if (password.length >= 6) {
+      reqLength.style.color = 'var(--green)';
+    } else {
+      reqLength.style.color = 'var(--text-muted)';
+    }
+    
+    // Letter requirement
+    if (/[a-zA-Z]/.test(password)) {
+      reqLetter.style.color = 'var(--green)';
+    } else {
+      reqLetter.style.color = 'var(--text-muted)';
+    }
+    
+    // Number requirement
+    if (/\d/.test(password)) {
+      reqNumber.style.color = 'var(--green)';
+    } else {
+      reqNumber.style.color = 'var(--text-muted)';
+    }
+  }
+
+  // Add password input listener
+  document.addEventListener('DOMContentLoaded', () => {
+    const passwordInput = document.getElementById('u-password');
+    if (passwordInput) {
+      passwordInput.addEventListener('input', (e) => {
+        updatePasswordRequirements(e.target.value);
+      });
+    }
+  });
+</script>
+
 </html>
