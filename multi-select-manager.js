@@ -112,6 +112,7 @@ function selectAllTasks() {
 
 // Clear selection
 function clearSelection() {
+  console.log('🔄 clearSelection() called - current selectedTasks.size:', selectedTasks.size);
   const taskCheckboxes = document.querySelectorAll('.task-checkbox');
   const selectAllCheckbox = document.getElementById('select-all-tasks');
   
@@ -124,8 +125,11 @@ function clearSelection() {
     selectAllCheckbox.indeterminate = false;
   }
   
+  console.log('🔄 selectedTasks cleared - new size:', selectedTasks.size);
   selectedTasks.clear();
+  console.log('🔄 selectedTasks cleared - new size:', selectedTasks.size);
   updateMultiSelectUI();
+  console.log('🔄 clearSelection() completed');
 }
 
 // Update multi-select UI
@@ -134,16 +138,23 @@ function updateMultiSelectUI() {
   const selectedCount = document.getElementById('selected-count');
   const selectAllCheckbox = document.getElementById('select-all-tasks');
   
+  console.log('🔄 updateMultiSelectUI() called - selectedTasks.size:', selectedTasks.size);
+  console.log('🔄 selectedCount element:', selectedCount ? 'found' : 'not found');
+  console.log('🔄 multiSelectActions element:', multiSelectActions ? 'found' : 'not found');
+  
   // Update selected count
   selectedCount.textContent = selectedTasks.size;
+  console.log('🔄 Updated selected count to:', selectedTasks.size);
   
   // Show/hide multi-select actions
   if (selectedTasks.size > 0) {
     multiSelectActions.classList.add('show');
     isMultiSelectMode = true;
+    console.log('🔄 Multi-select mode enabled');
   } else {
     multiSelectActions.classList.remove('show');
     isMultiSelectMode = false;
+    console.log('🔄 Multi-select mode disabled');
   }
   
   // Update select all checkbox state
@@ -181,44 +192,61 @@ function bulkCompleteTasks() {
   }
   
   // Show bulk completion modal
-  showBulkCompletionModal(incompleteTasks);
-}
-
-// Show bulk completion modal
-function showBulkCompletionModal(tasks) {
-  const modal = document.getElementById('task-completion-modal');
-  const modalTitle = document.getElementById('completion-modal-title');
-  const completionNotes = document.getElementById('completion-notes');
-  const completionDateTime = document.getElementById('completion-datetime');
+  const taskList = document.getElementById('bulk-completion-task-list');
+  const modal = document.getElementById('bulk-completion-modal');
+  const modalTitle = document.getElementById('bulk-completion-title');
+  const completionNotes = document.getElementById('bulk-completion-notes');
+  const completionDateTime = document.getElementById('bulk-completion-datetime');
   
-  if (!modal) {
-    console.error('❌ Task completion modal not found');
-    return;
-  }
+  showBulkCompletionModal(incompleteTasks);
   
   // Update modal title for bulk completion
-  modalTitle.textContent = `Complete ${tasks.length} Task(s)`;
+  if (modalTitle) {
+    modalTitle.textContent = `Complete ${incompleteTasks.length} Task(s)`;
+  }
+  
+  // Display tasks to be completed
+  let tasksHtml = '';
+  incompleteTasks.forEach(task => {
+    tasksHtml += `<div class="bulk-task-item">
+      <strong>${esc(task.title)}</strong>
+      ${task.projectSiteName ? `<br><small>${esc(task.projectSiteName)}</small>` : ''}
+    </div>`;
+  });
+  if (taskList) taskList.innerHTML = tasksHtml;
+  
+  // Show the modal
+  if (modal) {
+    modal.classList.add('open');
+    modal.style.display = 'flex';
+    console.log('🔄 Bulk completion modal opened');
+  }
   
   // Clear previous values
-  completionNotes.value = '';
+  if (completionNotes) completionNotes.value = '';
   
   // Set current datetime
   const now = new Date();
   const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
     .toISOString()
     .slice(0, 16);
-  completionDateTime.value = localDateTime;
-  
-  // Store tasks for completion
-  window.currentBulkTasks = tasks;
-  
-  // Show modal
-  modal.style.display = 'flex';
+  if (completionDateTime) completionDateTime.value = localDateTime;
   
   // Focus on notes field
   setTimeout(() => {
-    completionNotes.focus();
+    if (completionNotes) completionNotes.focus();
   }, 100);
+}
+
+// Escape HTML special characters
+function esc(str) {
+  if (!str) return '';
+  return str.toString()
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // Calculate time spent between two dates
@@ -294,8 +322,8 @@ function calculateTimeSpentDetailed(createdAt, completedAt) {
 
 // Process bulk task completion
 function processBulkTaskCompletion() {
-  const completionNotes = document.getElementById('completion-notes').value.trim();
-  const completionDateTime = document.getElementById('completion-datetime').value;
+  const completionNotes = document.getElementById('bulk-completion-notes').value.trim();
+  const completionDateTime = document.getElementById('bulk-completion-datetime').value;
   
   if (!completionDateTime) {
     showToast('Please select completion date and time', 'error');
@@ -336,6 +364,48 @@ function processBulkTaskCompletion() {
   
   Promise.all(promises)
     .then(() => {
+      // Create Project Details entries for completed tasks
+      const projectEntryPromises = [];
+      
+      if (window.currentBulkTasks && Array.isArray(window.currentBulkTasks)) {
+        window.currentBulkTasks.forEach(task => {
+          const timeSpent = calculateTimeSpent(task.createdAt, new Date(completionDateTime));
+          
+          const projectEntry = {
+            taskId: task.id,
+            taskName: task.title,
+            projectName: task.projectSiteName || task.title,
+            version: task.version || 'v1.0',
+            bugsFound: task.bugsFound || 0,
+            bugsDone: task.bugsDone || 0,
+            ignored: task.ignored || 0,
+            asPerLive: task.asPerLive || 0,
+            addedMethod: task.addedMethod || 'auto',
+            completedAt: new Date(completionDateTime),
+            completedByUid: currentUser?.uid,
+            completedByName: currentUser?.displayName || 'Unknown',
+            completionNotes: completionNotes || '',
+            timeSpentHours: timeSpent,
+            projectZohoUrl: task.projectZohoUrl || '',
+            projectSiteName: task.projectSiteName || task.title
+          };
+          
+          projectEntryPromises.push(db.collection('manageExcel').add(projectEntry));
+        });
+      }
+      
+      // Wait for all Project Details entries to be created
+      console.log('🔄 Creating Project Details entries for', projectEntryPromises.length, 'tasks');
+      return Promise.all(projectEntryPromises);
+    })
+    .then(() => {
+      console.log('✅ All Project Details entries created successfully');
+      // Update navigation badges immediately after entries are created
+      if (typeof updateNavBadge === 'function') {
+        updateNavBadge();
+        console.log('🔄 updateNavBadge called immediately after Project Details entries created');
+      }
+      
       // Calculate total time spent for all tasks
       let totalTimeSpent = 0;
       if (window.currentBulkTasks && Array.isArray(window.currentBulkTasks)) {
@@ -371,9 +441,19 @@ function processBulkTaskCompletion() {
       
       // Force refresh of task list to show updated timeSpentHours
       setTimeout(() => {
+        console.log('🔄 Bulk completion timeout - calling clearSelection, renderTasks, updateMultiSelectUI and updateNavBadge');
+        // Clear selection first to reset count
+        clearSelection();
         if (typeof renderTasks === 'function') {
           renderTasks();
         }
+        // Update multi-select UI to reset selected count
+        updateMultiSelectUI();
+        // Update navigation badges
+        if (typeof updateNavBadge === 'function') {
+          updateNavBadge();
+        }
+        console.log('🔄 Bulk completion timeout - all four functions called');
       }, 100);
     })
     .catch(error => {
@@ -384,19 +464,17 @@ function processBulkTaskCompletion() {
 
 // Close bulk completion modal
 function closeBulkCompletionModal() {
-  const modal = document.getElementById('task-completion-modal');
+  console.log('🔄 closeBulkCompletionModal() called');
+  const modal = document.getElementById('bulk-completion-modal');
+  console.log('🔄 Bulk completion modal element:', modal ? 'found' : 'not found');
   if (modal) {
+    modal.classList.remove('open');
     modal.style.display = 'none';
+    console.log('🔄 Bulk completion modal closed');
   }
   
   // Clear bulk tasks
   window.currentBulkTasks = null;
-  
-  // Reset modal title
-  const modalTitle = document.getElementById('completion-modal-title');
-  if (modalTitle) {
-    modalTitle.textContent = 'Complete Task';
-  }
 }
 
 // Bulk delete selected tasks
@@ -611,6 +689,61 @@ window.clearSelection = clearSelection;
 window.bulkCompleteTasks = bulkCompleteTasks;
 window.bulkDeleteTasks = bulkDeleteTasks;
 window.bulkExportTasks = bulkExportTasks;
+// Ensure showBulkCompletionModal is properly defined before window assignment
+function showBulkCompletionModal(tasks) {
+  console.log('🔄 showBulkCompletionModal() called with', tasks.length, 'tasks');
+  console.log('🔄 Current selectedTasks.size before modal:', selectedTasks.size);
+  window.currentBulkTasks = tasks;
+  
+  const modal = document.getElementById('bulk-completion-modal');
+  const modalTitle = document.getElementById('bulk-completion-title');
+  const taskList = document.getElementById('bulk-task-list');
+  
+  console.log('🔄 Modal elements - modal:', modal ? 'found' : 'not found', 'modalTitle:', modalTitle ? 'found' : 'not found', 'taskList:', taskList ? 'found' : 'not found');
+  
+  if (!modal) {
+    console.error('❌ Bulk completion modal not found');
+    return;
+  }
+  
+  // Update modal title for bulk completion
+  modalTitle.textContent = `Complete ${tasks.length} Task(s)`;
+  
+  // Display tasks to be completed
+  let tasksHtml = '';
+  tasks.forEach(task => {
+    tasksHtml += `<div class="bulk-task-item">
+      <strong>${esc(task.title)}</strong>
+      ${task.projectSiteName ? `<br><small>${esc(task.projectSiteName)}</small>` : ''}
+    </div>`;
+  });
+  taskList.innerHTML = tasksHtml;
+  
+  // Show the modal
+  modal.classList.add('open');
+  modal.style.display = 'flex';
+  console.log('🔄 Bulk completion modal opened');
+  
+  // Get form elements
+  const completionNotes = document.getElementById('bulk-completion-notes');
+  const completionDateTime = document.getElementById('bulk-completion-datetime');
+  
+  // Clear previous values
+  if (completionNotes) completionNotes.value = '';
+  
+  // Set current datetime
+  const now = new Date();
+  const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
+  if (completionDateTime) completionDateTime.value = localDateTime;
+  
+  // Focus on notes field
+  setTimeout(() => {
+    if (completionNotes) completionNotes.focus();
+  }, 100);
+}
+
 window.showBulkCompletionModal = showBulkCompletionModal;
 window.processBulkTaskCompletion = processBulkTaskCompletion;
 window.closeBulkCompletionModal = closeBulkCompletionModal;

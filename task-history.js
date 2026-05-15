@@ -1,7 +1,12 @@
 // Task History Modal Functions
 function showTaskHistory(taskId) {
+  console.log('🔄 showTaskHistory() called with taskId:', taskId);
   const task = allTasks.find(t => t.id === taskId);
-  if (!task) return;
+  console.log('🔄 Found task:', task ? 'yes' : 'no');
+  if (!task) {
+    console.log('❌ Task not found, returning');
+    return;
+  }
 
   const modal = document.getElementById('task-history-modal');
   const content = document.getElementById('task-history-content');
@@ -108,7 +113,10 @@ function showTaskHistory(taskId) {
   
   // Build HTML from sorted items
   let historyHTML = '';
-  allHistoryItems.forEach(item => {
+  console.log('🔄 Building history with', allHistoryItems.length, 'items');
+  
+  allHistoryItems.forEach((item, index) => {
+    console.log(`🔄 Processing history item ${index}:`, item);
     historyHTML += `
       <div class="history-item">
         <div class="history-icon">${item.icon}</div>
@@ -122,12 +130,18 @@ function showTaskHistory(taskId) {
     `;
   });
   
+  console.log('🔄 Generated historyHTML length:', historyHTML.length);
+  console.log('🔄 Modal element:', modal ? 'found' : 'not found');
+  console.log('🔄 Content element:', content ? 'found' : 'not found');
+  
   // Set content
   content.innerHTML = historyHTML;
+  console.log('🔄 Content set, innerHTML length:', content.innerHTML.length);
   
   // Show modal
   modal.style.display = 'flex';
   modal.classList.add('open');
+  console.log('🔄 Modal displayed');
 }
 
 function closeTaskHistory() {

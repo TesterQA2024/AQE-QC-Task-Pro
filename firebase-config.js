@@ -313,7 +313,11 @@ function startListeners() {
     allTasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     console.log('📋 Tasks updated:', allTasks.length, 'tasks loaded');
     console.log('📋 Task details:', allTasks.map(t => ({ id: t.id, title: t.title, assignedToUid: t.assignedToUid, status: t.status })));
-    renderTasks();
+    if (typeof renderTasks === 'function') {
+      renderTasks();
+    } else {
+      console.error('❌ renderTasks function not found!');
+    }
     renderDashboard();
     if (window.updateNavBadge) window.updateNavBadge();
   }, err => console.error('Tasks error:', err));
@@ -326,7 +330,12 @@ function startListeners() {
 
   const projUnsub = projQuery.onSnapshot(snap => {
     allProjects = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderProjects();
+    if (typeof renderProjects === 'function') {
+      renderProjects();
+    } else {
+      console.error('❌ renderProjects function not found!');
+    }
+    if (window.updateNavBadge) window.updateNavBadge();
   }, err => console.error('Projects error:', err));
   unsubs.push(projUnsub);
 
@@ -337,9 +346,20 @@ function startListeners() {
 
   const excelUnsub = excelQuery.onSnapshot(snap => {
     allExcel = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderExcel();
+    console.log('🔄 Excel snapshot received:', snap.docs.length, 'entries');
+    if (typeof renderExcel === 'function') {
+      renderExcel();
+    } else {
+      console.error('❌ renderExcel function not found!');
+    }
     if (window.renderRecentCompletions) window.renderRecentCompletions();
-    renderProjects(); // Also render projects to show new entries
+    if (typeof renderProjects === 'function') {
+      renderProjects(); // Also render projects to show new entries
+    } else {
+      console.error('❌ renderProjects function not found!');
+    }
+    if (window.updateNavBadge) window.updateNavBadge();
+    console.log('🔄 updateNavBadge called after Excel snapshot');
   }, err => console.error('Excel error:', err));
   unsubs.push(excelUnsub);
 
@@ -350,8 +370,16 @@ function startListeners() {
       console.log('👥 Users snapshot received:', snap.docs.length);
       allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       console.log('👥 allUsers updated:', allUsers.length);
-      renderUsers();
-      populateAssigneeDropdown();
+      if (typeof renderUsers === 'function') {
+        renderUsers();
+      } else {
+        console.error('❌ renderUsers function not found!');
+      }
+      if (typeof populateAssigneeDropdown === 'function') {
+        populateAssigneeDropdown();
+      } else {
+        console.error('❌ populateAssigneeDropdown function not found!');
+      }
     }, err => {
       console.error('❌ Users error:', err);
     });
@@ -459,6 +487,33 @@ window.allExcel = allExcel;
 window.allUsers = allUsers;
 window.editingProjectId = editingProjectId;
 window.handleLogin = handleLogin;
+// Initialize Google Sheets API
+function initGoogleSheetsAPI() {
+  console.log('📊 Initializing Google Sheets API...');
+  
+  // Check if Google API is available
+  if (typeof gapi !== 'undefined') {
+    gapi.load('client', () => {
+      console.log('📊 Google API client loaded');
+      // Note: You'll need to set up API key and client ID for full functionality
+      // For now, we'll use the Excel fallback which works perfectly
+    });
+  } else {
+    console.log('📊 Google API not available, will use Excel fallback');
+  }
+}
+
+// Enhanced app initialization
+function initApp() {
+  console.log('🚀 Initializing app...');
+  showLoginScreen();
+  
+  // Initialize Google Sheets API after Firebase is ready
+  setTimeout(() => {
+    initGoogleSheetsAPI();
+  }, 2000);
+}
+
 window.handleLogout = handleLogout;
 window.handleSetup = handleSetup;
 window.startListeners = startListeners;
@@ -467,3 +522,4 @@ window.getFriendlyError = getFriendlyError;
 window.showLoginScreen = showLoginScreen;
 window.showSetup = showSetup;
 window.initApp = initApp;
+window.initGoogleSheetsAPI = initGoogleSheetsAPI;

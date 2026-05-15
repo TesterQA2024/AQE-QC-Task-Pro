@@ -363,6 +363,9 @@ function renderExcel() {
     (e.projectName && e.projectName.toLowerCase().includes(searchQuery)) ||
     (e.completedByName && e.completedByName.toLowerCase().includes(searchQuery))
   );
+  
+  // Filter out completed tasks - only show active/pending tasks
+  filtered = filtered.filter(e => e.status !== 'complete');
 
   if (!filtered.length) {
     tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg><h3>No completions found</h3><p>Completed projects will appear here</p></div></td></tr>`;
@@ -472,7 +475,17 @@ function renderUsers() {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 function openModal(modalId) {
-  document.getElementById(modalId)?.classList.add('open');
+  console.log('🔓 openModal() called with modalId:', modalId);
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    console.log('🔓 Modal element found, adding open class');
+    modal.classList.add('open');
+    // Also set display:flex to ensure modal is visible
+    modal.style.display = 'flex';
+    console.log('🔓 Modal display set to flex, current style:', modal.style.display);
+  } else {
+    console.error('❌ Modal element not found for ID:', modalId);
+  }
 }
 
 function closeModal(modalId) {
@@ -735,12 +748,26 @@ function showToast(message, type = 'info') {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 function openConfirm(text, cb) {
+  console.log('🔔 openConfirm() called with text:', text);
   document.getElementById('confirm-text').innerHTML = text;
   confirmCallback = cb;
+  console.log('🔔 Opening confirm modal');
   openModal('confirm-modal');
-  document.getElementById('confirm-ok-btn').onclick = () => {
+  
+  const modal = document.getElementById('confirm-modal');
+  const okBtn = document.getElementById('confirm-ok-btn');
+  console.log('🔔 Modal element:', modal ? 'found' : 'not found');
+  console.log('🔔 OK button element:', okBtn ? 'found' : 'not found');
+  
+  okBtn.onclick = () => {
+    console.log('🔔 Confirm OK button clicked');
     closeModal('confirm-modal');
-    if (confirmCallback) confirmCallback();
+    if (confirmCallback) {
+      console.log('🔔 Executing confirm callback');
+      confirmCallback();
+    } else {
+      console.error('❌ No confirm callback found!');
+    }
     confirmCallback = null;
   };
 }
@@ -799,6 +826,11 @@ function switchTab(tab) {
     setTimeout(() => {
       console.log('🔄 Re-rendering projects after tab switch');
       renderProjects();
+      // Update navigation badge after projects are rendered
+      if (typeof updateNavBadge === 'function') {
+        updateNavBadge();
+        console.log('🔄 updateNavBadge called after projects render');
+      }
     }, 200);
   }
 }
@@ -905,6 +937,14 @@ function viewTaskDetails(id) {
           <span class="detail-value"><span class="badge badge-${task.status}">${capitalize(task.status)}</span></span>
         </div>
         <div class="detail-row">
+          <span class="detail-label">Due Date:</span>
+          <span class="detail-value">${task.dueDate ? formatDate(task.dueDate) + ' ' + formatTime(task.dueDate) : '—'}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Time Spent:</span>
+          <span class="detail-value">${task.timeSpentHours ? task.timeSpentHours + ' hours' : '—'}</span>
+        </div>
+        <div class="detail-row">
           <span class="detail-label">Task Type:</span>
           <span class="detail-value">${esc(task.taskType || '—')}</span>
         </div>
@@ -921,20 +961,12 @@ function viewTaskDetails(id) {
           <span class="detail-value">${task.taskTime ? formatTimestamp(task.taskTime) : '—'}</span>
         </div>
         <div class="detail-row">
-          <span class="detail-label">Due Date:</span>
-          <span class="detail-value">${task.dueDate ? formatDate(task.dueDate) : '—'}</span>
-        </div>
-        <div class="detail-row">
           <span class="detail-label">Created At:</span>
           <span class="detail-value">${task.createdAt ? formatTimestamp(task.createdAt) : '—'}</span>
         </div>
         <div class="detail-row">
           <span class="detail-label">Completed At:</span>
           <span class="detail-value">${task.completedAt ? formatTimestamp(task.completedAt) : '—'}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Time Spent:</span>
-          <span class="detail-value">${task.timeSpentHours ? task.timeSpentHours + ' hours' : '—'}</span>
         </div>
       </div>
 
@@ -973,10 +1005,27 @@ function viewTaskDetails(id) {
           <span class="detail-value">${esc(task.completionNotes || '—')}</span>
         </div>
       </div>
+
+      <div class="detail-section">
+        <h3>🔗 Additional Information</h3>
+        <div class="detail-row">
+          <span class="detail-label">Checklist URL:</span>
+          <span class="detail-value">${task.checklistUrl ? `<a href="${task.checklistUrl}" target="_blank">🔗 ${task.checklistUrl}</a>` : '—'}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Pre QC Done:</span>
+          <span class="detail-value">${task.preQaDone ? '✅ Yes' : '❌ No'}</span>
+        </div>
+      </div>
     </div>
   `;
 
+  console.log('🔍 Opening task view modal');
   openModal('task-view-modal');
+  
+  const modal = document.getElementById('task-view-modal');
+  console.log('🔍 Task view modal element after openModal:', modal ? 'found' : 'not found');
+  console.log('🔍 Task view modal display style:', modal ? modal.style.display : 'modal not found');
 }
 
 function closeTaskView() {

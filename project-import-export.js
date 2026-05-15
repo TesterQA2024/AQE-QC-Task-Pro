@@ -215,19 +215,26 @@ function updateProjectSelection() {
 
 function getSelectedProjectIds() {
   const checkboxes = document.querySelectorAll('.project-checkbox:checked');
+  console.log('🗑️ Found checked checkboxes:', checkboxes.length);
+  
   const ids = [];
   checkboxes.forEach(cb => {
     if (cb.dataset && cb.dataset.id) {
       ids.push(cb.dataset.id);
+      console.log('🗑️ Checkbox ID:', cb.dataset.id, 'Name:', cb.dataset.name || 'Unknown');
     }
   });
+  console.log('🗑️ Final selected IDs:', ids);
   return ids;
 }
 
 async function bulkDeleteProjects() {
+  console.log('🗑️ bulkDeleteProjects() called');
   const selectedIds = getSelectedProjectIds();
+  console.log('🗑️ Selected IDs:', selectedIds);
 
   if (!selectedIds || !Array.isArray(selectedIds) || selectedIds.length === 0) {
+    console.log('❌ No projects selected');
     showToast('Please select projects to delete.', 'error');
     return;
   }
@@ -235,6 +242,7 @@ async function bulkDeleteProjects() {
   // Ensure allProjects and allExcel are arrays
   const projectsArray = Array.isArray(allProjects) ? allProjects : [];
   const excelArray = Array.isArray(allExcel) ? allExcel : [];
+  console.log('🗑️ Projects array length:', projectsArray.length, 'Excel array length:', excelArray.length);
 
   // Use simple for loops instead of filter to avoid indexOf issues
   const selectedProjects = [];
@@ -243,34 +251,43 @@ async function bulkDeleteProjects() {
   for (let i = 0; i < projectsArray.length; i++) {
     if (projectsArray[i] && projectsArray[i].id && selectedIds.includes(projectsArray[i].id)) {
       selectedProjects.push(projectsArray[i]);
+      console.log('🗑️ Found selected project:', projectsArray[i].projectName);
     }
   }
 
   for (let i = 0; i < excelArray.length; i++) {
     if (excelArray[i] && excelArray[i].id && selectedIds.includes(excelArray[i].id)) {
       selectedExcelEntries.push(excelArray[i]);
+      console.log('🗑️ Found selected excel entry:', excelArray[i].taskName || excelArray[i].projectName);
     }
   }
+
+  console.log('🗑️ Selected projects count:', selectedProjects.length, 'Selected excel entries count:', selectedExcelEntries.length);
 
   // Delete from projects collection
   if (selectedProjects.length > 0) {
     const projectNames = selectedProjects.map(p => p.projectName || 'Unknown').filter(n => n).join(', ');
     const message = `Delete ${selectedProjects.length} project(s): "${projectNames}"?`;
+    console.log('🗑️ Showing project delete confirmation:', message);
     openConfirm(message, async () => {
+      console.log('🗑️ Project delete confirmed, deleting', selectedProjects.length, 'projects');
       try {
         const deletePromises = selectedProjects.map(p =>
           firebase.firestore().collection('projects').doc(p.id).delete()
         );
-
         await Promise.all(deletePromises);
+        console.log('✅ Projects deleted successfully');
         showToast(`Deleted ${selectedProjects.length} projects successfully.`, 'success');
 
         // Clear selection
         const selectAllCheckbox = document.getElementById('select-all-projects');
-        if (selectAllCheckbox) selectAllCheckbox.checked = false;
+        if (selectAllCheckbox) {
+          selectAllCheckbox.checked = false;
+          console.log('🗑️ Cleared project selection checkbox');
+        }
         updateProjectSelection();
       } catch (error) {
-        console.error('Bulk delete error:', error);
+        console.error('❌ Bulk delete error:', error);
         showToast('Error deleting projects: ' + error.message, 'error');
       }
     });
@@ -281,21 +298,26 @@ async function bulkDeleteProjects() {
   if (selectedExcelEntries.length > 0) {
     const entryNames = selectedExcelEntries.map(e => e.projectName || e.taskName || 'Unknown').filter(n => n).join(', ');
     const message = `Delete ${selectedExcelEntries.length} completion entry/ies: "${entryNames}"?`;
+    console.log('🗑️ Showing excel entry delete confirmation:', message);
     openConfirm(message, async () => {
+      console.log('🗑️ Excel entry delete confirmed, deleting', selectedExcelEntries.length, 'entries');
       try {
         const deletePromises = selectedExcelEntries.map(e =>
           db.collection('manageExcel').doc(e.id).delete()
         );
-
         await Promise.all(deletePromises);
+        console.log('✅ Excel entries deleted successfully');
         showToast(`Deleted ${selectedExcelEntries.length} entries successfully.`, 'success');
 
         // Clear selection
         const selectAllCheckbox = document.getElementById('select-all-projects');
-        if (selectAllCheckbox) selectAllCheckbox.checked = false;
+        if (selectAllCheckbox) {
+          selectAllCheckbox.checked = false;
+          console.log('🗑️ Cleared excel selection checkbox');
+        }
         updateProjectSelection();
       } catch (error) {
-        console.error('Bulk delete error:', error);
+        console.error('❌ Bulk delete error:', error);
         showToast('Error deleting entries: ' + error.message, 'error');
       }
     });

@@ -122,7 +122,9 @@ async function saveTask() {
     dueDate: dueDate,
     taskType: taskType,
     userName: userName,
-    notes: notes
+    notes: notes,
+    checklistUrl: document.getElementById('t-checklist-url')?.value.trim() || '',
+    preQaDone: document.getElementById('t-pre-qa-done')?.checked || false
   };
 
   try {
@@ -402,6 +404,12 @@ async function saveProject() {
     }
     closeModal('project-modal');
     editingProjectId = null;
+    
+    // Update navigation badge after project is saved
+    if (typeof updateNavBadge === 'function') {
+      updateNavBadge();
+      console.log('🔄 updateNavBadge called after project save');
+    }
   } catch(e) {
     errEl.textContent = 'Error saving project: ' + e.message;
     errEl.style.display = 'block';
@@ -446,7 +454,7 @@ async function markProjectComplete(id) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 async function saveManualEntry() {
-  const taskName    = document.getElementById('e-task').value.trim();
+  const taskName    = document.getElementById('e-task').value.trim(); 
   const projectName = document.getElementById('e-project').value.trim();
   const version     = document.getElementById('e-version').value.trim();
   const bugsFound   = document.getElementById('e-found').value;
@@ -648,7 +656,11 @@ async function importExcel(event) {
       let added = 0;
       for (const row of jsonData) {
         if (row['Task Name']) {
-          const entry = {
+          console.log('🔍 Import Excel - processing row:', row);
+console.log('🔍 Import Excel - checklistUrl field:', row['Checklist URL']);
+console.log('🔍 Import Excel - preQaDone field:', row['Pre QC Done']);
+
+const entry = {
             taskName: row['Task Name'] || '',
             projectName: row['Project Name'] || '',
             version: row['Version'] || '',
@@ -657,12 +669,16 @@ async function importExcel(event) {
             ignored: row['Ignored'] ? parseInt(row['Ignored']) : null,
             asPerLive: row['As Per Live'] ? parseInt(row['As Per Live']) : null,
             notes: row['Notes'] || '',
+            checklistUrl: row['Checklist URL'] || '',
+            preQaDone: row['Pre QC Done'] === 'Yes' ? true : (row['Pre QC Done'] === true ? true : false),
             completedAt: row['Completed At'] ? Timestamp.fromDate(new Date(row['Completed At'])) : serverTimestamp(),
             completedByUid: currentUser.uid,
             completedByName: currentProfile.name,
             addedMethod: 'auto',
             addedAt: serverTimestamp()
           };
+
+console.log('🔍 Import Excel - created entry:', entry);
           await addDoc(collection(db, 'manageExcel'), entry);
           added++;
         }
@@ -685,7 +701,62 @@ function exportManageExcel() {
     return;
   }
 
-  const exportData = allExcel.map(e => ({
+  // Show verification bar
+  showToast(`Exporting ${allExcel.length} entries with field verification...`, 'info');
+  
+  // Debug: Check allExcel array contents for duplicates
+  if (Array.isArray(allExcel)) {
+    console.log('🔍 allExcel array contents:');
+    console.log('🔍 allExcel type:', typeof allExcel, 'length:', allExcel.length);
+    console.log('🔍 allExcel value:', JSON.stringify(allExcel, null, 2));
+    
+    if (allExcel.length === 0) {
+      console.log('🔍 allExcel is empty array - should show count 0');
+    }
+    
+    // Check first entry for field verification
+    if (allExcel.length > 0) {
+      const firstEntry = allExcel[0];
+      console.log('🔍 First entry analysis:');
+      console.log('  - Has checklistUrl:', !!firstEntry.checklistUrl);
+      console.log('  - Has preQaDone:', !!firstEntry.preQaDone);
+      console.log('  - First entry keys:', Object.keys(firstEntry));
+      console.log('  - Checklist URL value:', firstEntry.checklistUrl);
+      console.log('  - Pre QC Done value:', firstEntry.preQaDone);
+    }
+    
+    allExcel.forEach((entry, index) => {
+      console.log(`  [${index}] ID: ${entry.id}, Task: ${entry.taskName || 'N/A'}, Project: ${entry.projectName || 'N/A'}, CompletedBy: ${entry.completedByName || 'N/A'}`);
+    });
+    console.log(`🔍 Total unique IDs: ${[...new Set(allExcel.map(e => e.id))].size}`);
+  } else {
+    console.log('🔍 allExcel is not an array:', allExcel, 'type:', typeof allExcel);
+  }
+
+  // Debug: Check allExcel array contents for duplicates
+  if (Array.isArray(allExcel)) {
+    console.log('🔍 allExcel array contents:');
+    console.log('🔍 allExcel type:', typeof allExcel, 'length:', allExcel.length);
+    console.log('🔍 allExcel value:', JSON.stringify(allExcel, null, 2));
+    
+    if (allExcel.length === 0) {
+      console.log('🔍 allExcel is empty array - should show count 0');
+    }
+    
+    allExcel.forEach((entry, index) => {
+      console.log(`  [${index}] ID: ${entry.id}, Task: ${entry.taskName || 'N/A'}, Project: ${entry.projectName || 'N/A'}, CompletedBy: ${entry.completedByName || 'N/A'}`);
+    });
+    console.log(`🔍 Total unique IDs: ${[...new Set(allExcel.map(e => e.id))].size}`);
+  } else {
+    console.log('🔍 allExcel is not an array:', allExcel, 'type:', typeof allExcel);
+  }
+
+  console.log('🔍 Export Excel - allExcel array:', allExcel);
+console.log('🔍 Export Excel - first entry:', allExcel[0]);
+console.log('🔍 Export Excel - checklistUrl field:', allExcel[0]?.checklistUrl);
+console.log('🔍 Export Excel - preQaDone field:', allExcel[0]?.preQaDone);
+
+const exportData = allExcel.map(e => ({
     'Task / Project':  e.taskName || '',
     'Project Name':    e.projectName || '',
     'Completed By':    e.completedByName || '',
@@ -697,14 +768,324 @@ function exportManageExcel() {
     'Bugs Done':       e.bugsDone || '',
     'Ignored':         e.ignored || '',
     'As Per Live':     e.asPerLive || '',
-    'Notes':           e.notes || ''
+    'Notes':           e.notes || '',
+    'Checklist URL':    e.checklistUrl || '',
+    'Pre QC Done':     e.preQaDone ? 'Yes' : 'No'
   }));
 
-  const ws = XLSX.utils.json_to_sheet(exportData);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Completions');
-  XLSX.writeFile(wb, `AQE_Completions_${formatDateFull(serverTimestamp()).replace(/[:\s/]/g, '_')}.xlsx`);
-  showToast('Excel exported successfully.', 'success');
+console.log('🔍 Export Excel - column order:', Object.keys(exportData[0] || {}));
+
+console.log('🔍 Export Excel - exportData sample:', exportData[0]);
+
+  console.log('🔍 Export Excel - final exportData length:', exportData.length);
+console.log('🔍 Export Excel - exportData keys for first entry:', Object.keys(exportData[0] || {}));
+
+const ws = XLSX.utils.json_to_sheet(exportData);
+console.log('🔍 Export Excel - worksheet created, cell count:', ws['!ref'].split(':').length);
+
+const wb = XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb, ws, 'Completions');
+console.log('🔍 Export Excel - workbook created with sheets:', Object.keys(wb.Sheets));
+
+XLSX.writeFile(wb, `AQE_Completions_${formatDateFull(serverTimestamp()).replace(/[:\s/]/g, '_')}.xlsx`);
+console.log('🔍 Export Excel - file write completed');
+showToast('Excel exported successfully.', 'success');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 📊 GOOGLE SHEETS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function createGoogleSheet() {
+  console.log('📊 Creating Google Sheet...');
+  
+  // Get current date and time for filename
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+  const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS
+  
+  // Get project name from first entry or use default
+  let projectName = 'AQE_Project';
+  if (allExcel.length > 0 && allExcel[0].projectName) {
+    projectName = allExcel[0].projectName.replace(/[^a-zA-Z0-9]/g, '_');
+  }
+  
+  // Create filename with project name and date/time
+  const fileName = `${projectName}_${dateStr}_${timeStr}`;
+  
+  console.log('📊 Creating Google Sheet with filename:', fileName);
+  showToast(`Creating Google Sheet: ${fileName}`, 'info');
+  
+  // Check if Google API is available
+  if (typeof gapi === 'undefined' || !gapi.client) {
+    console.log('📊 Google API not available, using Excel fallback...');
+    fallbackToExcelDownload(fileName);
+    return;
+  }
+  
+  try {
+    // Create Google Sheet using API
+    createGoogleSheetAPI(fileName);
+    
+  } catch (error) {
+    console.error('📊 Error creating Google Sheet:', error);
+    console.log('📊 Falling back to Excel download...');
+    fallbackToExcelDownload(fileName);
+  }
+}
+
+async function createGoogleSheetAPI(sheetName) {
+  console.log('📊 Creating Google Sheet via API...');
+  
+  // Template sheet ID (your existing sheet)
+  const templateSheetId = '1_wUzA_pKfUH7IVJGerRDto2tVmcP5JPOj8wlLF6Xq54';
+  
+  try {
+    // Step 1: Copy the template sheet
+    const copyResponse = await gapi.client.sheets.spreadsheets.sheets.copyTo({
+      spreadsheetId: templateSheetId,
+      sheetId: 0, // Copy first sheet
+      destinationSpreadsheetId: null // Create new spreadsheet
+    });
+    
+    console.log('📊 Template copied:', copyResponse);
+    
+    // Step 2: Create new spreadsheet with copied data
+    const newSpreadsheet = await gapi.client.sheets.spreadsheets.create({
+      properties: {
+        title: sheetName
+      }
+    });
+    
+    const newSpreadsheetId = newSpreadsheet.result.spreadsheetId;
+    console.log('📊 New spreadsheet created:', newSpreadsheetId);
+    
+    // Step 3: Create 4 sheets with checkbox functionality
+    const sheetNames = ['Sheet1', 'Sheet2', 'Sheet3', 'Sheet4'];
+    
+    for (let i = 0; i < sheetNames.length; i++) {
+      await gapi.client.sheets.spreadsheets.batchUpdate({
+        spreadsheetId: newSpreadsheetId,
+        requests: [
+          {
+            addSheet: {
+              properties: {
+                title: sheetNames[i],
+                gridProperties: {
+                  rowCount: 1000,
+                  columnCount: 26
+                }
+              }
+            }
+          }
+        ]
+      });
+      
+      // Add checkbox functionality to the sheet
+      await addCheckboxFunctionality(newSpreadsheetId, sheetNames[i]);
+    }
+    
+    // Step 4: Add project data and checkbox list
+    await addProjectDataWithCheckboxes(newSpreadsheetId);
+    
+    // Step 5: Open the created Google Sheet
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/${newSpreadsheetId}/edit`;
+    window.open(sheetUrl, '_blank');
+    
+    console.log('📊 Google Sheet created and opened:', sheetUrl);
+    showToast(`Google Sheet created: ${sheetName}`, 'success');
+    
+    // Store the new sheet ID for future reference
+    localStorage.setItem('lastGoogleSheetId', newSpreadsheetId);
+    
+  } catch (error) {
+    console.error('📊 Google Sheets API Error:', error);
+    
+    // Fallback to Excel download if API fails
+    console.log('📊 Fallback to Excel download...');
+    fallbackToExcelDownload(sheetName);
+  }
+}
+
+async function addCheckboxFunctionality(spreadsheetId, sheetName) {
+  console.log('📊 Adding checkbox functionality to:', sheetName);
+  
+  try {
+    // Add checkbox column and formatting
+    await gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: spreadsheetId,
+      requests: [
+        {
+          repeatCell: {
+            range: {
+              sheetId: 0,
+              startRowIndex: 1,
+              endRowIndex: 1000,
+              startColumnIndex: 0,
+              endColumnIndex: 1
+            },
+            cell: {
+              userEnteredFormat: {
+                dataValidation: {
+                  condition: {
+                    type: 'BOOLEAN'
+                  }
+                }
+              }
+            },
+            fields: 'dataValidation'
+          }
+        }
+      ]
+    });
+    
+    console.log('📊 Checkbox functionality added to:', sheetName);
+    
+  } catch (error) {
+    console.error('📊 Error adding checkbox functionality:', error);
+  }
+}
+
+async function addProjectDataWithCheckboxes(spreadsheetId) {
+  console.log('📊 Adding project data with checkboxes...');
+  
+  try {
+    // Get unique projects from allExcel
+    const uniqueProjects = [...new Set(allExcel.map(e => e.projectName).filter(p => p))];
+    
+    // Create project list with checkboxes
+    const projectData = uniqueProjects.map((project, index) => [
+      `=FALSE()`, // Checkbox formula
+      project,    // Project name
+      '',         // Status
+      new Date().toISOString().split('T')[0], // Date
+      ''          // Notes
+    ]);
+    
+    // Add data to first sheet
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: spreadsheetId,
+      range: 'Sheet1!A2:E' + (projectData.length + 1),
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: projectData
+      }
+    });
+    
+    // Add headers
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: spreadsheetId,
+      range: 'Sheet1!A1:E1',
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [['Checkbox', 'Project Name', 'Status', 'Date', 'Notes']]
+      }
+    });
+    
+    console.log('📊 Project data added with checkboxes');
+    
+  } catch (error) {
+    console.error('📊 Error adding project data:', error);
+  }
+}
+
+function fallbackToExcelDownload(sheetName) {
+  console.log('📊 Fallback: Creating Excel file...');
+  
+  try {
+    // Export data for Excel
+    const exportData = allExcel.map(e => ({
+      'Checkbox': 'FALSE',
+      'Project Name': e.projectName || '',
+      'Task / Project': e.taskName || '',
+      'Completed By': e.completedByName || '',
+      'Completed At': formatDateFull(e.completedAt),
+      'Added At': formatDateFull(e.addedAt),
+      'Method': e.addedMethod || 'auto',
+      'Version': e.version || '',
+      'Bugs Found': e.bugsFound || '',
+      'Bugs Done': e.bugsDone || '',
+      'Ignored': e.ignored || '',
+      'As Per Live': e.asPerLive || '',
+      'Notes': e.notes || '',
+      'Checklist URL': e.checklistUrl || '',
+      'Pre QC Done': e.preQaDone ? 'Yes' : 'No'
+    }));
+
+    // Create Excel file with 4 sheets
+    const wb = XLSX.utils.book_new();
+    
+    // Sheet 1: Project List with Checkboxes
+    const uniqueProjects = [...new Set(allExcel.map(e => e.projectName).filter(p => p))];
+    const projectData = uniqueProjects.map(project => ({
+      'Checkbox': 'FALSE',
+      'Project Name': project,
+      'Status': '',
+      'Date': new Date().toISOString().split('T')[0],
+      'Notes': ''
+    }));
+    const ws1 = XLSX.utils.json_to_sheet(projectData);
+    XLSX.utils.book_append_sheet(wb, ws1, 'Project List');
+    
+    // Sheet 2: Task Details
+    const ws2 = XLSX.utils.json_to_sheet(exportData);
+    XLSX.utils.book_append_sheet(wb, ws2, 'Task Details');
+    
+    // Sheet 3: Summary
+    const summaryData = [{
+      'Total Projects': uniqueProjects.length,
+      'Total Tasks': allExcel.length,
+      'Created Date': new Date().toISOString().split('T')[0],
+      'Created By': currentProfile?.name || 'User'
+    }];
+    const ws3 = XLSX.utils.json_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, ws3, 'Summary');
+    
+    // Sheet 4: Settings
+    const settingsData = [{
+      'Setting': 'Auto-refresh',
+      'Value': 'TRUE'
+    }, {
+      'Setting': 'Notifications',
+      'Value': 'TRUE'
+    }];
+    const ws4 = XLSX.utils.json_to_sheet(settingsData);
+    XLSX.utils.book_append_sheet(wb, ws4, 'Settings');
+    
+    // Write file
+    const fileName = `${sheetName}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    
+    console.log('📊 Excel file created as fallback:', fileName);
+    showToast(`Excel file created (Google Sheets API unavailable): ${fileName}`, 'warning');
+    
+  } catch (error) {
+    console.error('📊 Error in fallback:', error);
+    showToast('Error creating file: ' + error.message, 'error');
+  }
+}
+
+// Initialize Google Sheets API
+function initGoogleSheetsAPI() {
+  console.log('📊 Initializing Google Sheets API...');
+  
+  // Check if Google API is available
+  if (typeof gapi !== 'undefined') {
+    gapi.load('client:auth2', () => {
+      gapi.client.init({
+        apiKey: 'YOUR_API_KEY', // You'll need to set this
+        discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+        clientId: 'YOUR_CLIENT_ID', // You'll need to set this
+        scope: 'https://www.googleapis.com/auth/spreadsheets'
+      }).then(() => {
+        console.log('📊 Google Sheets API initialized');
+      }).catch(error => {
+        console.error('📊 Error initializing Google Sheets API:', error);
+      });
+    });
+  } else {
+    console.log('📊 Google API not available, will use Excel fallback');
+  }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -764,11 +1145,66 @@ function startClock() {
 }
 
 function updateNavBadge() {
-  const badge = document.querySelector('.nav-item[onclick*="tasks"] .nav-badge');
-  if (badge) {
-    const total = allTasks.length;
-    badge.textContent = total;
-    badge.style.display = total > 0 ? 'block' : 'none';
+  console.log('🔄 updateNavBadge() called');
+  console.log('🔄 allTasks.length:', allTasks.length);
+  console.log('🔄 allExcel.length:', Array.isArray(allExcel) ? allExcel.length : 'not array');
+  
+  // Update tasks badge
+  const tasksBadge = document.querySelector('.nav-item[onclick*="tasks"] .nav-badge');
+  console.log('🔄 tasksBadge element:', tasksBadge ? 'found' : 'not found');
+  if (tasksBadge) {
+    const tasksTotal = allTasks.length;
+    tasksBadge.textContent = tasksTotal;
+    tasksBadge.style.display = tasksTotal > 0 ? 'block' : 'none';
+    console.log('🔄 Tasks badge updated to:', tasksTotal);
+  }
+  
+  // Update projects badge - create badge if it doesn't exist
+  let projectsBadge = document.querySelector('.nav-item[onclick*="projects"] .nav-badge');
+  
+  // Alternative selector if first one doesn't work
+  if (!projectsBadge) {
+    projectsBadge = document.querySelector('div[onclick*="switchTab(\'projects\')"] .nav-badge');
+  }
+  
+  // Final fallback - get by ID if we created it dynamically
+  if (!projectsBadge) {
+    projectsBadge = document.getElementById('projects-badge');
+  }
+  if (!projectsBadge) {
+    console.log('🔄 Projects badge not found, creating new one');
+    const projectsNavItem = document.querySelector('.nav-item[onclick*="projects"]');
+    if (projectsNavItem) {
+      projectsBadge = document.createElement('span');
+      projectsBadge.id = 'projects-badge'; // Assign ID to dynamically created badge
+      projectsBadge.className = 'nav-badge';
+      projectsBadge.style.display = 'none';
+      projectsNavItem.appendChild(projectsBadge);
+      console.log('🔄 Projects badge created and appended');
+    }
+  } else {
+    console.log('🔄 Projects badge found, updating directly');
+  }
+  
+  console.log('🔄 projectsBadge element:', projectsBadge ? 'found' : 'not found');
+  if (projectsBadge) {
+    // Count both manageExcel entries (from task completion) and manual projects
+    const validExcelEntries = Array.isArray(allExcel) ? allExcel.filter(entry => entry.taskId && entry.taskName) : [];
+    const manualProjects = Array.isArray(allProjects) ? allProjects : [];
+    const projectsTotal = validExcelEntries.length + manualProjects.length;
+    console.log('🔍 Counting entries - excel:', validExcelEntries.length, 'manual projects:', manualProjects.length, 'total:', projectsTotal);
+    console.log('🔄 updateNavBadge() called - allExcel.length:', allExcel.length, 'projectsTotal calculated:', projectsTotal);
+    console.log('🔍 allExcel array contents:');
+    console.log('🔍 allExcel type:', typeof allExcel, 'is array:', Array.isArray(allExcel));
+    console.log('🔍 allExcel value:', JSON.stringify(allExcel, null, 2));
+    
+    if (allExcel.length === 0) {
+      console.log('🔍 allExcel is empty - badge should show 0 and be hidden');
+    }
+    
+    projectsBadge.textContent = projectsTotal;
+    projectsBadge.style.display = projectsTotal > 0 ? 'block' : 'none';
+    console.log('🔄 Projects badge updated to:', projectsTotal, 'badge text content:', projectsBadge.textContent, 'display style:', projectsBadge.style.display);
   }
 }
 
