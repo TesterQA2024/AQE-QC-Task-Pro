@@ -13,50 +13,117 @@ let tasksCurrentPage = 1;
 let tasksItemsPerPage = 10;
 let projectsCurrentPage = 1;
 let projectsItemsPerPage = 10;
+let sheetTrackerCurrentPage = 1;
+let sheetTrackerItemsPerPage = 10;
+let sheetTrackerSortField = 'createdAt';
+let sheetTrackerSortDir = 'desc'; // 'asc' or 'desc'
 
 // DASHBOARD RENDERING
 function renderDashboard() {
-  console.log('📊 renderDashboard() called, allTasks:', allTasks.length);
-  
   const total    = allTasks.length;
   const pending  = allTasks.filter(t => t.status === 'pending').length;
   const ongoing  = allTasks.filter(t => t.status === 'ongoing').length;
   const complete = allTasks.filter(t => t.status === 'complete').length;
 
-  console.log('📊 Task counts:', { total, pending, ongoing, complete });
+  const allProjectEntries = [
+    ...allProjects,
+    ...allExcel.filter(e => e.taskId && e.taskName)
+  ];
+  const totalProjects  = allProjectEntries.length;
+  const totalBugsFound = allProjectEntries.reduce((s, e) => s + (parseInt(e.bugsFound) || 0), 0);
+  const totalBugsDone  = allProjectEntries.reduce((s, e) => s + (parseInt(e.bugsDone)  || 0), 0);
+  const totalIgnored   = allProjectEntries.reduce((s, e) => s + (parseInt(e.ignored)   || 0), 0);
+  const totalLive      = allProjectEntries.reduce((s, e) => s + (parseInt(e.asPerLive) || 0), 0);
+  const totalUsers     = allUsers.length;
 
-  const totalEl    = document.getElementById('stat-total');
-  const pendingEl  = document.getElementById('stat-pending');
-  const ongoingEl  = document.getElementById('stat-ongoing');
-  const completeEl = document.getElementById('stat-complete');
-  
-  if (totalEl) totalEl.textContent = total;
-  if (pendingEl) pendingEl.textContent = pending;
-  if (ongoingEl) ongoingEl.textContent = ongoing;
-  if (completeEl) completeEl.textContent = complete;
-  
-  console.log('📊 Dashboard stats updated:', { 
-    total: totalEl?.textContent, 
-    pending: pendingEl?.textContent, 
-    ongoing: ongoingEl?.textContent, 
-    complete: completeEl?.textContent 
-  });
+  const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setEl('stat-total',      total);
+  setEl('stat-pending',    pending);
+  setEl('stat-ongoing',    ongoing);
+  setEl('stat-complete',   complete);
+  setEl('stat-projects',   totalProjects);
+  setEl('stat-bugs-found', totalBugsFound);
+  setEl('stat-bugs-done',  totalBugsDone);
+  setEl('stat-ignored',    totalIgnored);
+  setEl('stat-live',       totalLive);
+  setEl('stat-users',      totalUsers);
 
-  // Recent tasks (last 5)
-  const recent = allTasks.slice(0, 5);
-  const tbody  = document.getElementById('recent-tasks-body');
-  if (!recent.length) {
-    tbody.innerHTML = `<tr><td colspan="3"><div class="empty-state" style="padding:24px">No tasks yet</div></td></tr>`;
+  // Recent Projects (last 5)
+  const recentEntries = [
+    ...allProjects,
+    ...allExcel.filter(e => e.taskId && e.taskName)
+  ].sort((a, b) => {
+    const da = a.completedAt || a.importedAt || a.updatedAt;
+    const db_ = b.completedAt || b.importedAt || b.updatedAt;
+    const ta = da ? (da.toDate ? da.toDate() : new Date(da)) : new Date(0);
+    const tb = db_ ? (db_.toDate ? db_.toDate() : new Date(db_)) : new Date(0);
+    return tb - ta;
+  }).slice(0, 5);
+
+  const tbody = document.getElementById('recent-tasks-body');
+  if (!tbody) return;
+  if (!recentEntries.length) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state" style="padding:24px">No projects yet</div></td></tr>`;
     return;
   }
-  tbody.innerHTML = recent.map(t => `
+  tbody.innerHTML = recentEntries.map(e => `
     <tr>
-      <td><div class="task-title-cell">${esc(t.title)}</div></td>
-      <td><span class="badge badge-${t.status}">${capitalize(t.status)}</span></td>
-      <td class="date-cell">${formatDate(t.createdAt)}<span class="time">${formatTime(t.createdAt)}</span></td>
+      <td style="text-align:left;"><div class="task-title-cell">${esc(e.projectName || e.taskName || '—')}</div></td>
+      <td>${e.taskName && e.projectName !== e.taskName ? `<span style="font-size:12px;color:var(--text-muted);">${esc(e.taskName)}</span>` : '<span style="color:var(--text-muted);">—</span>'}</td>
+      <td><span class="bug-pill bug-found">${parseInt(e.bugsFound) || 0}</span></td>
+      <td><span class="bug-pill bug-done">${parseInt(e.bugsDone) || 0}</span></td>
+      <td><span class="badge badge-${e.status || 'complete'}">${capitalize(e.status || 'complete')}</span></td>
     </tr>
   `).join('');
 }
+
+function openDashboardProjectsModal() {
+  const allProjectEntries = [
+    ...allProjects,
+    ...allExcel.filter(e => e.taskId && e.taskName)
+  ];
+
+  const tbody = document.getElementById('dash-projects-body');
+  if (!tbody) return;
+
+  if (!allProjectEntries.length) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state" style="padding:24px">No projects yet</div></td></tr>`;
+  } else {
+    // Sort newest first
+    const sorted = [...allProjectEntries].sort((a, b) => {
+      const da = (a.completedAt || a.importedAt || a.updatedAt);
+      const db_ = (b.completedAt || b.importedAt || b.updatedAt);
+      const ta = da ? (da.toDate ? da.toDate() : new Date(da)) : new Date(0);
+      const tb = db_ ? (db_.toDate ? db_.toDate() : new Date(db_)) : new Date(0);
+      return tb - ta;
+    });
+    tbody.innerHTML = sorted.map(e => `
+      <tr>
+        <td style="text-align:left;">${esc(e.projectName || e.taskName || '—')}</td>
+        <td><span class="bug-pill bug-found">${parseInt(e.bugsFound) || 0}</span></td>
+        <td><span class="bug-pill bug-done">${parseInt(e.bugsDone) || 0}</span></td>
+        <td><span class="bug-pill bug-ignored">${parseInt(e.ignored) || 0}</span></td>
+        <td><span class="bug-pill bug-live">${parseInt(e.asPerLive) || 0}</span></td>
+      </tr>
+    `).join('');
+  }
+
+  // Update modal totals
+  const totalFound   = allProjectEntries.reduce((s, e) => s + (parseInt(e.bugsFound) || 0), 0);
+  const totalDone    = allProjectEntries.reduce((s, e) => s + (parseInt(e.bugsDone)  || 0), 0);
+  const totalIgnored = allProjectEntries.reduce((s, e) => s + (parseInt(e.ignored)   || 0), 0);
+  const totalLive    = allProjectEntries.reduce((s, e) => s + (parseInt(e.asPerLive) || 0), 0);
+
+  const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setEl('dash-modal-count',   allProjectEntries.length);
+  setEl('dash-modal-found',   totalFound);
+  setEl('dash-modal-done',    totalDone);
+  setEl('dash-modal-ignored', totalIgnored);
+  setEl('dash-modal-live',    totalLive);
+
+  openModal('dashboard-projects-modal');
+}
+window.openDashboardProjectsModal = openDashboardProjectsModal;
 
 // TASKS RENDERING
 function renderTasks() {
@@ -418,7 +485,7 @@ function renderUsers() {
 
   if (!allUsers.length) {
     console.log('📭 No users found');
-    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg><h3>No users yet</h3><p>Create your first user to get started</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg><h3>No users yet</h3><p>Create your first user to get started</p></div></td></tr>`;
     return;
   }
 
@@ -780,6 +847,7 @@ const tabMeta = {
   dashboard:  { title: 'Dashboard',        sub: 'System overview and statistics',      search: false },
   tasks:      { title: 'Tasks',            sub: 'Manage and track all your tasks',         search: true  },
   projects:   { title: 'Project Details',  sub: 'QC project tracking with bug counts',     search: true  },
+  sheettracker:{ title: 'Sheet Tracker',    sub: 'Track task sheets with checklist and Zoho URLs', search: false },
   manageexcel:{ title: 'Manage Excel',     sub: 'Version-wise completed projects log',     search: false },
   users:       { title: 'User Management',  sub: 'Manage team members and permissions',     search: false },
 };
@@ -1078,6 +1146,32 @@ function nextProjectsPage() {
   }
 }
 
+function prevSheetTrackerPage() {
+  if (sheetTrackerCurrentPage > 1) {
+    sheetTrackerCurrentPage--;
+    renderSheetTracker();
+  }
+}
+
+function nextSheetTrackerPage() {
+  const totalPages = Math.ceil(allSheetTracker.length / sheetTrackerItemsPerPage);
+  if (sheetTrackerCurrentPage < totalPages) {
+    sheetTrackerCurrentPage++;
+    renderSheetTracker();
+  }
+}
+
+function setSheetTrackerSort(field) {
+  if (sheetTrackerSortField === field) {
+    sheetTrackerSortDir = sheetTrackerSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    sheetTrackerSortField = field;
+    sheetTrackerSortDir = 'asc';
+  }
+  sheetTrackerCurrentPage = 1;
+  renderSheetTracker();
+}
+
 // Export functions for global use
 window.renderDashboard = renderDashboard;
 window.renderTasks = renderTasks;
@@ -1108,3 +1202,6 @@ window.prevTasksPage = prevTasksPage;
 window.nextTasksPage = nextTasksPage;
 window.prevProjectsPage = prevProjectsPage;
 window.nextProjectsPage = nextProjectsPage;
+window.prevSheetTrackerPage = prevSheetTrackerPage;
+window.nextSheetTrackerPage = nextSheetTrackerPage;
+window.setSheetTrackerSort = setSheetTrackerSort;

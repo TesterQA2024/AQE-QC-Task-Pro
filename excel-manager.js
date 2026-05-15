@@ -313,9 +313,25 @@ function importTasksFromExcel(file) {
           }
           
           // Save to Firebase
-          await firebase.firestore().collection('tasks').add(taskData);
+          const importedTaskRef = await firebase.firestore().collection('tasks').add(taskData);
           importedCount++;
-          
+
+          // Sheet Tracker entry for imported task
+          try {
+            await firebase.firestore().collection('sheetTracker').add({
+              taskName: taskData.title,
+              projectName: taskData.projectSiteName || '',
+              checklistUrl: null,
+              zohoUrl: taskData.projectZohoUrl || null,
+              taskId: importedTaskRef.id,
+              createdByUid: currentUser.uid,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          } catch(sheetErr) {
+            console.error('Sheet Tracker entry error:', sheetErr);
+          }
+
           console.log(`✅ Imported task: ${taskData.title}`);
           
         } catch (error) {

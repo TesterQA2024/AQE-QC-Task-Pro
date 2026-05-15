@@ -161,7 +161,19 @@ function importProjectsData(data) {
       }
 
       // Save to Firebase
-      firebase.firestore().collection('projects').add(projectData);
+      firebase.firestore().collection('projects').add(projectData).then(projRef => {
+        // Sheet Tracker entry for imported project
+        firebase.firestore().collection('sheetTracker').add({
+          taskName: projectData.projectName,
+          projectName: projectData.projectName,
+          checklistUrl: projectData.checklistUrl || null,
+          zohoUrl: projectData.zohoLink || null,
+          taskId: null,
+          createdByUid: currentUser.uid,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(sheetErr => console.error('Sheet Tracker entry error:', sheetErr));
+      });
       successCount++;
       
     } catch (error) {
@@ -276,7 +288,16 @@ async function bulkDeleteProjects() {
           firebase.firestore().collection('projects').doc(p.id).delete()
         );
         await Promise.all(deletePromises);
-        console.log('✅ Projects deleted successfully');
+
+        // Delete linked Sheet Tracker entries for each project
+        for (const p of selectedProjects) {
+          const stSnap = await firebase.firestore().collection('sheetTracker')
+            .where('projectName', '==', p.projectName).get();
+          stSnap.forEach(doc => {
+            if (!doc.data().taskId) doc.ref.delete();
+          });
+        }
+
         showToast(`Deleted ${selectedProjects.length} projects successfully.`, 'success');
 
         // Clear selection
@@ -306,7 +327,20 @@ async function bulkDeleteProjects() {
           db.collection('manageExcel').doc(e.id).delete()
         );
         await Promise.all(deletePromises);
-        console.log('✅ Excel entries deleted successfully');
+
+        // Delete linked Sheet Tracker entries
+        for (const e of selectedExcelEntries) {
+          if (e.taskId) {
+            const stSnap = await firebase.firestore().collection('sheetTracker').where('taskId', '==', e.taskId).get();
+            stSnap.forEach(doc => doc.ref.delete());
+          } else if (e.taskName) {
+            const stSnap = await firebase.firestore().collection('sheetTracker')
+              .where('taskName', '==', e.taskName)
+              .where('projectName', '==', e.projectName || '').get();
+            stSnap.forEach(doc => doc.ref.delete());
+          }
+        }
+
         showToast(`Deleted ${selectedExcelEntries.length} entries successfully.`, 'success');
 
         // Clear selection

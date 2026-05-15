@@ -322,139 +322,93 @@ function calculateTimeSpentDetailed(createdAt, completedAt) {
 
 // Process bulk task completion
 function processBulkTaskCompletion() {
-  const completionNotes = document.getElementById('bulk-completion-notes').value.trim();
+  const completionNotes    = document.getElementById('bulk-completion-notes').value.trim();
   const completionDateTime = document.getElementById('bulk-completion-datetime').value;
-  
+  const bugsFoundEl        = document.getElementById('bulk-completion-bugs-found');
+  const bugsDoneEl         = document.getElementById('bulk-completion-bugs-done');
+  const errorEl            = document.getElementById('bulk-completion-error');
+
+  errorEl.style.display = 'none';
+
+  // Validation
   if (!completionDateTime) {
-    showToast('Please select completion date and time', 'error');
-    return;
+    errorEl.textContent = 'Please select completion date and time.';
+    errorEl.style.display = 'block'; return;
   }
-  
+  if (bugsFoundEl.value === '' || bugsFoundEl.value === null) {
+    errorEl.textContent = '🐛 Bugs Found is required.';
+    errorEl.style.display = 'block'; bugsFoundEl.focus(); return;
+  }
+  if (bugsDoneEl.value === '' || bugsDoneEl.value === null) {
+    errorEl.textContent = '✅ Bugs Done is required.';
+    errorEl.style.display = 'block'; bugsDoneEl.focus(); return;
+  }
   if (!window.currentBulkTasks || window.currentBulkTasks.length === 0) {
-    showToast('No tasks to complete', 'error');
-    return;
+    showToast('No tasks to complete', 'error'); return;
   }
-  
-  const promises = [];
-  
-  window.currentBulkTasks.forEach(task => {
-    // Calculate time spent automatically
+
+  const bugsFound = parseInt(bugsFoundEl.value) || 0;
+  const bugsDone  = parseInt(bugsDoneEl.value)  || 0;
+  const ignored   = parseInt(document.getElementById('bulk-completion-ignored')?.value) || 0;
+  const asPerLive = parseInt(document.getElementById('bulk-completion-live')?.value)    || 0;
+  const version   = document.getElementById('bulk-completion-version')?.value?.trim()  || '';
+
+  const taskPromises = window.currentBulkTasks.map(task => {
     const timeSpent = calculateTimeSpent(task.createdAt, new Date(completionDateTime));
-    
     const updateData = {
       status: 'complete',
       completedAt: new Date(completionDateTime),
       timeSpentHours: timeSpent,
       modificationHistory: firebase.firestore.FieldValue.arrayUnion({
-        field: 'status',
-        oldValue: task.status || 'pending',
-        newValue: 'complete',
-        timestamp: new Date(),
-        modifiedBy: currentUser?.displayName || 'Unknown'
+        field: 'status', oldValue: task.status || 'pending', newValue: 'complete',
+        timestamp: new Date(), modifiedBy: currentUser?.displayName || 'Unknown'
       })
     };
-    
-    // Add completion notes if provided
-    if (completionNotes) {
-      updateData.completionNotes = completionNotes;
-    }
-    
-    promises.push(db.collection('tasks').doc(task.id).update(updateData));
+    if (completionNotes) updateData.completionNotes = completionNotes;
+    return db.collection('tasks').doc(task.id).update(updateData);
   });
-  
-  Promise.all(promises)
+
+  Promise.all(taskPromises)
     .then(() => {
-      // Create Project Details entries for completed tasks
-      const projectEntryPromises = [];
-      
-      if (window.currentBulkTasks && Array.isArray(window.currentBulkTasks)) {
-        window.currentBulkTasks.forEach(task => {
-          const timeSpent = calculateTimeSpent(task.createdAt, new Date(completionDateTime));
-          
-          const projectEntry = {
-            taskId: task.id,
-            taskName: task.title,
-            projectName: task.projectSiteName || task.title,
-            version: task.version || 'v1.0',
-            bugsFound: task.bugsFound || 0,
-            bugsDone: task.bugsDone || 0,
-            ignored: task.ignored || 0,
-            asPerLive: task.asPerLive || 0,
-            addedMethod: task.addedMethod || 'auto',
-            completedAt: new Date(completionDateTime),
-            completedByUid: currentUser?.uid,
-            completedByName: currentUser?.displayName || 'Unknown',
-            completionNotes: completionNotes || '',
-            timeSpentHours: timeSpent,
-            projectZohoUrl: task.projectZohoUrl || '',
-            projectSiteName: task.projectSiteName || task.title
-          };
-          
-          projectEntryPromises.push(db.collection('manageExcel').add(projectEntry));
+      // Create Project Details entries with actual bug counts from form
+      const entryPromises = window.currentBulkTasks.map(task => {
+        const timeSpent = calculateTimeSpent(task.createdAt, new Date(completionDateTime));
+        return db.collection('manageExcel').add({
+          taskId: task.id,
+          taskName: task.title || '',
+          projectName: task.projectSiteName || '',
+          zohoLink: task.projectZohoUrl || '',
+          version, bugsFound, bugsDone, ignored, asPerLive,
+          notes: completionNotes || '',
+          completedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          completedByUid: currentUser?.uid || null,
+          completedByName: currentProfile?.name || 'Unknown',
+          addedMethod: 'auto',
+          addedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          timeSpentHours: timeSpent
         });
-      }
-      
-      // Wait for all Project Details entries to be created
-      console.log('🔄 Creating Project Details entries for', projectEntryPromises.length, 'tasks');
-      return Promise.all(projectEntryPromises);
+      });
+      return Promise.all(entryPromises);
     })
     .then(() => {
-      console.log('✅ All Project Details entries created successfully');
-      // Update navigation badges immediately after entries are created
-      if (typeof updateNavBadge === 'function') {
-        updateNavBadge();
-        console.log('🔄 updateNavBadge called immediately after Project Details entries created');
-      }
-      
-      // Calculate total time spent for all tasks
-      let totalTimeSpent = 0;
-      if (window.currentBulkTasks && Array.isArray(window.currentBulkTasks)) {
-        window.currentBulkTasks.forEach(task => {
-          const timeSpent = calculateTimeSpent(task.createdAt, new Date(completionDateTime));
-          totalTimeSpent += timeSpent;
-        });
-      }
-      
-      if (totalTimeSpent > 0) {
-        showToast(`Successfully completed ${window.currentBulkTasks.length} task(s)! Total time spent: ${totalTimeSpent} hours`, 'success');
-      } else {
-        showToast(`Successfully completed ${window.currentBulkTasks.length} task(s)`, 'success');
-      }
-      
+      showToast(`✅ ${window.currentBulkTasks.length} task(s) completed!`, 'success');
+      // Update local allTasks array
+      window.currentBulkTasks.forEach(task => {
+        const idx = allTasks.findIndex(t => t.id === task.id);
+        if (idx !== -1) {
+          const timeData = calculateTimeSpentDetailed(task.createdAt, new Date(completionDateTime));
+          allTasks[idx].status = 'complete';
+          allTasks[idx].completedAt = new Date(completionDateTime);
+          allTasks[idx].timeSpentHours = timeData.hours + (timeData.minutes / 60);
+          allTasks[idx].timeSpentDisplay = timeData.display;
+        }
+      });
       closeBulkCompletionModal();
       clearSelection();
-      
-      // Update allTasks array immediately for each completed task
-      if (window.currentBulkTasks && Array.isArray(window.currentBulkTasks)) {
-        window.currentBulkTasks.forEach(task => {
-          const taskIndex = allTasks.findIndex(t => t.id === task.id);
-          if (taskIndex !== -1) {
-            const timeData = calculateTimeSpentDetailed(task.createdAt, new Date(completionDateTime));
-            const validTimeSpent = timeData.hours + (timeData.minutes / 60);
-            allTasks[taskIndex].timeSpentHours = validTimeSpent;
-            allTasks[taskIndex].timeSpentDisplay = timeData.display;
-            allTasks[taskIndex].status = 'complete';
-            allTasks[taskIndex].completedAt = new Date(completionDateTime);
-          }
-        });
-      }
-      
-      // Force refresh of task list to show updated timeSpentHours
       setTimeout(() => {
-        console.log('🔄 Bulk completion timeout - calling clearSelection, renderTasks, updateMultiSelectUI and updateNavBadge');
-        // Clear selection first to reset count
-        clearSelection();
-        if (typeof renderTasks === 'function') {
-          renderTasks();
-        }
-        // Update multi-select UI to reset selected count
-        updateMultiSelectUI();
-        // Update navigation badges
-        if (typeof updateNavBadge === 'function') {
-          updateNavBadge();
-        }
-        console.log('🔄 Bulk completion timeout - all four functions called');
-      }, 100);
+        if (typeof renderTasks === 'function') renderTasks();
+        if (typeof updateNavBadge === 'function') updateNavBadge();
+      }, 300);
     })
     .catch(error => {
       console.error('❌ Bulk complete error:', error);

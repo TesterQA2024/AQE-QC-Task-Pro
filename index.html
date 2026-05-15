@@ -13,7 +13,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
 <!-- Google Sheets API -->
-<script src="https://apis.google.com/js/api.js"></script>
+<!-- <script src="https://apis.google.com/js/api.js"></script> -->
 
 <!-- EXCEL LIBRARY -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -165,12 +165,21 @@
           Project Details
           <span class="nav-badge" style="display:none;">0</span>
         </div>
+        <div class="nav-item" onclick="switchTab('sheettracker')">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          Sheet Tracker
+          <span class="nav-badge" style="display:none;">0</span>
+        </div>
+        <!-- Temporarily Hidden Google Sheets Tab
         <div class="nav-item" onclick="createGoogleSheet()">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
           </svg>
           Google Sheets
         </div>
+-->
         <!-- Temporarily Hidden Manage Excel Tab
         <div class="nav-item" onclick="switchTab('manageexcel')">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -243,6 +252,8 @@
     <div class="page-content">
       <!-- DASHBOARD TAB -->
       <div id="tab-dashboard" class="tab-pane active">
+
+        <!-- WELCOME BANNER -->
         <div class="welcome-banner">
           <div>
             <h2 id="greeting">Good morning, User!</h2>
@@ -254,45 +265,85 @@
           </div>
         </div>
 
-        <div class="stats-grid">
-          <div class="stat-card total">
+        <!-- TASK STATS -->
+        <div class="dash-section-label">📋 Tasks Overview</div>
+        <div class="stats-grid" style="margin-bottom:8px;">
+          <div class="stat-card total" onclick="setTaskFilter('all');switchTab('tasks');" style="cursor:pointer;">
             <div class="stat-label">Total Tasks</div>
             <div class="stat-number" id="stat-total">0</div>
-            <div class="stat-icon">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-              </svg>
-            </div>
+            <div class="stat-hint">Click to view all</div>
+            <div class="stat-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
           </div>
-          <div class="stat-card pending">
+          <div class="stat-card pending" onclick="setTaskFilter('pending');switchTab('tasks');" style="cursor:pointer;">
             <div class="stat-label">Pending</div>
             <div class="stat-number" id="stat-pending">0</div>
-            <div class="stat-icon">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </div>
+            <div class="stat-hint">Click to filter</div>
+            <div class="stat-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
           </div>
-          <div class="stat-card ongoing">
+          <div class="stat-card ongoing" onclick="setTaskFilter('ongoing');switchTab('tasks');" style="cursor:pointer;">
             <div class="stat-label">In Progress</div>
             <div class="stat-number" id="stat-ongoing">0</div>
-            <div class="stat-icon">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-              </svg>
-            </div>
+            <div class="stat-hint">Click to filter</div>
+            <div class="stat-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></div>
           </div>
-          <div class="stat-card complete">
+          <div class="stat-card complete" onclick="setTaskFilter('complete');switchTab('tasks');" style="cursor:pointer;">
             <div class="stat-label">Completed</div>
             <div class="stat-number" id="stat-complete">0</div>
-            <div class="stat-icon">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
+            <div class="stat-hint">Click to filter</div>
+            <div class="stat-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+          </div>
+        </div>
+
+        <!-- PROJECT STATS -->
+        <div class="dash-section-label" style="margin-top:20px;">📁 Projects &amp; Bugs Overview <span style="font-size:11px;color:var(--text-muted);font-weight:400;">(click any card to view details)</span></div>
+        <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:8px;">
+          <div class="stat-card stat-projects" onclick="openDashboardProjectsModal()" style="cursor:pointer;">
+            <div class="stat-label">Total Projects</div>
+            <div class="stat-number" id="stat-projects" style="color:var(--purple);">0</div>
+            <div class="stat-hint">All entries</div>
+            <div class="stat-icon" style="color:var(--purple);"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
+          </div>
+          <div class="stat-card stat-found" onclick="openDashboardProjectsModal()" style="cursor:pointer;">
+            <div class="stat-label">🐛 Bugs Found</div>
+            <div class="stat-number" id="stat-bugs-found" style="color:var(--red);">0</div>
+            <div class="stat-hint">Across all projects</div>
+            <div class="stat-icon" style="color:var(--red);"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></div>
+          </div>
+          <div class="stat-card stat-done" onclick="openDashboardProjectsModal()" style="cursor:pointer;">
+            <div class="stat-label">✅ Bugs Done</div>
+            <div class="stat-number" id="stat-bugs-done" style="color:var(--green);">0</div>
+            <div class="stat-hint">Across all projects</div>
+            <div class="stat-icon" style="color:var(--green);"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+          </div>
+          <div class="stat-card stat-ignored" onclick="openDashboardProjectsModal()" style="cursor:pointer;">
+            <div class="stat-label">🚫 Ignored</div>
+            <div class="stat-number" id="stat-ignored" style="color:var(--amber);">0</div>
+            <div class="stat-hint">Across all projects</div>
+            <div class="stat-icon" style="color:var(--amber);"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg></div>
+          </div>
+          <div class="stat-card stat-live" onclick="openDashboardProjectsModal()" style="cursor:pointer;">
+            <div class="stat-label">🟢 As Per Live</div>
+            <div class="stat-number" id="stat-live" style="color:var(--primary);">0</div>
+            <div class="stat-hint">Across all projects</div>
+            <div class="stat-icon" style="color:var(--primary);"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg></div>
+          </div>
+        </div>
+
+        <!-- USERS CARD (Super Admin only) -->
+        <div id="stat-users-row" style="display:none;margin-top:20px;margin-bottom:8px;">
+          <div class="dash-section-label">👥 Team Overview</div>
+          <div style="display:flex;gap:16px;">
+            <div class="stat-card" style="cursor:pointer;flex:0 0 200px;" onclick="switchTab('users')">
+              <div class="stat-label">👥 Total Users</div>
+              <div class="stat-number" id="stat-users" style="color:var(--gold);">0</div>
+              <div class="stat-hint">Click to manage</div>
+              <div class="stat-icon" style="color:var(--gold);"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg></div>
             </div>
           </div>
         </div>
 
+        <!-- RECENT TABLES -->
+        <div class="dash-section-label" style="margin-top:20px;">🕐 Recent Activity</div>
         <div class="dashboard-grid">
           <div class="table-card">
             <div class="table-header">
@@ -300,15 +351,16 @@
                 <div class="section-title">Recent Projects</div>
                 <div class="section-sub">Latest project updates</div>
               </div>
+              <button class="btn btn-ghost btn-sm" onclick="switchTab('projects')">View All →</button>
             </div>
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Project</th>
-                  <th>Bugs Found</th>
-                  <th>Bugs Done</th>
+                  <th style="text-align:left;">Project</th>
+                  <th style="text-align:left;">Task</th>
+                  <th>🐛 Found</th>
+                  <th>✅ Done</th>
                   <th>Status</th>
-                  <th>Updated</th>
                 </tr>
               </thead>
               <tbody id="recent-tasks-body">
@@ -320,13 +372,14 @@
             <div class="table-header">
               <div>
                 <div class="section-title">Recent Completions</div>
-                <div class="section-sub">Latest project completions</div>
+                <div class="section-sub">Latest task completions</div>
               </div>
+              <button class="btn btn-ghost btn-sm" onclick="switchTab('tasks')">View All →</button>
             </div>
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Task</th>
+                  <th style="text-align:left;">Task</th>
                   <th>Completed By</th>
                   <th>Date</th>
                 </tr>
@@ -597,6 +650,90 @@
               <tr class="loading-row"><td colspan="10">Loading log...</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- SHEET TRACKER TAB -->
+      <div id="tab-sheettracker" class="tab-pane">
+        <div class="table-card">
+          <div class="table-header">
+            <div class="table-header-left">
+              <div>
+                <div class="section-title">Sheet Tracker</div>
+                <div class="section-sub">Track task sheets with checklist and Zoho URLs</div>
+              </div>
+            </div>
+            <div class="table-header-right">
+              <button class="btn btn-warning btn-sm" onclick="triggerSheetTrackerImport()" title="Import from Excel">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                Import
+              </button>
+              <button class="btn btn-success btn-sm" onclick="exportSheetTrackerToExcel()" title="Export to Excel">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Export
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="openSheetTrackerModal()">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                </svg>
+                Add Entry
+              </button>
+            </div>
+          </div>
+          <!-- ST Multi-select bar -->
+          <div id="st-multi-select-bar" class="multi-select-actions" style="display:none;">
+            <div class="multi-select-info"><span id="st-selected-count">0</span> entries selected</div>
+            <div class="multi-select-buttons">
+              <button class="multi-select-btn delete" onclick="bulkDeleteSTEntries()">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                Delete Selected
+              </button>
+            </div>
+          </div>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width:40px;"><input type="checkbox" id="select-all-st" onchange="toggleSelectAllST()"></th>
+                <th onclick="setSheetTrackerSort('taskName')" style="cursor:pointer;">Task Name <span id="st-sort-taskName">&#8597;</span></th>
+                <th onclick="setSheetTrackerSort('projectName')" style="cursor:pointer;">Project Name <span id="st-sort-projectName">&#8597;</span></th>
+                <th>Checklist URL</th>
+                <th>Zoho URL</th>
+                <th onclick="setSheetTrackerSort('createdAt')" style="cursor:pointer;">Created At <span id="st-sort-createdAt">&darr;</span></th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="sheettracker-body">
+              <tr class="loading-row"><td colspan="6">Loading sheet tracker...</td></tr>
+            </tbody>
+          </table>
+          <!-- Pagination Controls -->
+          <div class="pagination-wrapper">
+            <div class="pagination-info">
+              <span id="st-pagination-info">Showing 0-0 of 0</span>
+            </div>
+            <div class="pagination-controls">
+              <button class="pagination-btn" onclick="prevSheetTrackerPage()" id="prev-st-btn" disabled>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+              </button>
+              <span class="pagination-pages">
+                <span id="st-current-page">1</span>
+                <span class="pagination-divider">/</span>
+                <span id="st-total-pages">1</span>
+              </span>
+              <button class="pagination-btn" onclick="nextSheetTrackerPage()" id="next-st-btn" disabled>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1208,6 +1345,64 @@
   </div>
 </div>
 
+<!-- Dashboard Projects Modal -->
+<div class="modal-overlay" id="dashboard-projects-modal">
+  <div class="modal" style="width:700px;">
+    <div class="modal-header">
+      <div class="modal-title">📁 Project Details Overview</div>
+      <div class="modal-close" onclick="closeModal('dashboard-projects-modal')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="modal-body" style="padding:0;">
+      <!-- Summary Row -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;padding:20px;background:var(--bg3);border-bottom:1px solid var(--border);">
+        <div style="text-align:center;">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Projects</div>
+          <div style="font-size:28px;font-weight:700;color:var(--purple);font-family:'Cormorant Garamond',serif;" id="dash-modal-count">0</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🐛 Found</div>
+          <div style="font-size:28px;font-weight:700;color:var(--red);font-family:'Cormorant Garamond',serif;" id="dash-modal-found">0</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">✅ Done</div>
+          <div style="font-size:28px;font-weight:700;color:var(--green);font-family:'Cormorant Garamond',serif;" id="dash-modal-done">0</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🚫 Ignored</div>
+          <div style="font-size:28px;font-weight:700;color:var(--amber);font-family:'Cormorant Garamond',serif;" id="dash-modal-ignored">0</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🟢 Live</div>
+          <div style="font-size:28px;font-weight:700;color:var(--primary);font-family:'Cormorant Garamond',serif;" id="dash-modal-live">0</div>
+        </div>
+      </div>
+      <!-- Table -->
+      <div style="max-height:400px;overflow-y:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="text-align:left;">Project Name</th>
+              <th>🐛 Found</th>
+              <th>✅ Done</th>
+              <th>🚫 Ignored</th>
+              <th>🟢 Live</th>
+            </tr>
+          </thead>
+          <tbody id="dash-projects-body">
+            <tr class="loading-row"><td colspan="5">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('dashboard-projects-modal')">Close</button>
+      <button class="btn btn-primary" onclick="closeModal('dashboard-projects-modal');switchTab('projects');">Go to Projects</button>
+    </div>
+  </div>
+</div>
+
 <!-- Confirm Delete Modal -->
 <div class="modal-overlay" id="confirm-modal">
   <div class="modal" style="width:400px;">
@@ -1222,6 +1417,48 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('confirm-modal')">Cancel</button>
       <button class="btn btn-danger" id="confirm-ok-btn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sheet Tracker Modal -->
+<div class="modal-overlay" id="sheettracker-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="sheettracker-modal-title">Add Sheet Tracker Entry</div>
+      <div class="modal-close" onclick="closeModal('sheettracker-modal')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Task Name *</label>
+        <input type="text" id="st-task-name" class="form-input" placeholder="Enter task name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Project Name *</label>
+        <input type="text" id="st-project-name" class="form-input" placeholder="Enter project name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Checklist URL</label>
+        <input type="url" id="st-checklist-url" class="form-input" placeholder="https://checklist.example.com/...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Zoho URL</label>
+        <input type="url" id="st-zoho-url" class="form-input" placeholder="https://projects.zoho.com/...">
+      </div>
+      <div id="sheettracker-modal-error" class="error-msg"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('sheettracker-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSheetTrackerEntry()">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+        </svg>
+        Save Entry
+      </button>
     </div>
   </div>
 </div>

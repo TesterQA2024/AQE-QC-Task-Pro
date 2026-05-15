@@ -265,8 +265,24 @@ async function saveTask() {
       data.createdByUid = currentUser.uid;
       data.createdByName = currentProfile.name;
       data.status = status;
-      await firebase.firestore().collection('tasks').add(data);
+      const newTaskRef = await firebase.firestore().collection('tasks').add(data);
       showToast('Task created.', 'success');
+
+      // Sheet Tracker entry on new task creation
+      try {
+        await firebase.firestore().collection('sheetTracker').add({
+          taskName: data.title,
+          projectName: data.projectSiteName || '',
+          checklistUrl: data.checklistUrl || null,
+          zohoUrl: data.projectZohoUrl || null,
+          taskId: newTaskRef.id,
+          createdByUid: currentUser.uid,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch(sheetErr) {
+        console.error('Sheet Tracker entry error:', sheetErr);
+      }
     }
     
     closeModal('task-modal');
@@ -280,23 +296,22 @@ async function saveTask() {
 }
 
 async function deleteTask(id, title) {
-  console.log('🗑️ deleteTask() called with id:', id, 'title:', title);
-
   openConfirm(`Delete task "<strong>${esc(title)}</strong>"?`, async () => {
-    console.log('🗑️ Delete confirmed for task:', id);
     try {
-      console.log('🗑️ Deleting task:', id);
+      // Delete task
       await firebase.firestore().collection('tasks').doc(id).delete();
-      console.log('✅ Task deleted successfully!');
+
+      // Delete linked manageExcel entries
+      const excelSnap = await firebase.firestore().collection('manageExcel').where('taskId', '==', id).get();
+      excelSnap.forEach(doc => doc.ref.delete());
+
+      // Delete linked Sheet Tracker entries
+      const stSnap = await firebase.firestore().collection('sheetTracker').where('taskId', '==', id).get();
+      stSnap.forEach(doc => doc.ref.delete());
+
       showToast('Task deleted.', 'success');
-      
-      // Re-render tasks to ensure buttons work properly
-      setTimeout(() => {
-        console.log('🔄 Re-rendering tasks after deletion');
-        renderTasks();
-      }, 500);
+      setTimeout(() => renderTasks(), 500);
     } catch(e) {
-      console.error('❌ Task delete error:', e);
       showToast('Error: ' + e.message, 'error');
     }
   });
@@ -393,6 +408,7 @@ async function saveProject() {
     importedByName: currentProfile.name
   };
 
+  const isNewProject = !editingProjectId;
   try {
     if (editingProjectId) {
       await db.collection('projects').doc(editingProjectId).update(data);
@@ -404,7 +420,25 @@ async function saveProject() {
     }
     closeModal('project-modal');
     editingProjectId = null;
-    
+
+    // Sheet Tracker entry on new project creation
+    if (isNewProject) {
+      try {
+        await firebase.firestore().collection('sheetTracker').add({
+          taskName: name,
+          projectName: name,
+          checklistUrl: checklistUrl || null,
+          zohoUrl: zoho || null,
+          taskId: null,
+          createdByUid: currentUser.uid,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch(sheetErr) {
+        console.error('Sheet Tracker entry error:', sheetErr);
+      }
+    }
+
     // Update navigation badge after project is saved
     if (typeof updateNavBadge === 'function') {
       updateNavBadge();
@@ -417,18 +451,20 @@ async function saveProject() {
 }
 
 async function deleteProject(id, name) {
-  console.log('🗑️ deleteProject() called with id:', id, 'name:', name);
   openConfirm(`Delete project "<strong>${esc(name)}</strong>"?`, async () => {
-    console.log('🗑️ Delete confirmed for project:', id);
     try {
       await db.collection('projects').doc(id).delete();
+
+      // Delete linked Sheet Tracker entries by projectName where taskId is null or missing
+      const stSnap = await firebase.firestore().collection('sheetTracker')
+        .where('projectName', '==', name).get();
+      stSnap.forEach(doc => {
+        const data = doc.data();
+        if (!data.taskId) doc.ref.delete();
+      });
+
       showToast('Project deleted.', 'success');
-      
-      // Re-render projects to ensure buttons work properly
-      setTimeout(() => {
-        console.log('🔄 Re-rendering projects after deletion');
-        renderProjects();
-      }, 500);
+      setTimeout(() => renderProjects(), 500);
     } catch(e) {
       showToast('Error: ' + e.message, 'error');
     }
@@ -498,8 +534,26 @@ async function saveManualEntry() {
       delete modal.dataset.editingId; // Clear editing ID
     } else {
       // Create new entry
-      await addDoc(collection(db, 'manageExcel'), data);
+      await db.collection('manageExcel').add(data);
       showToast('Completion entry added.', 'success');
+      
+      // Also create sheet tracker entry
+      try {
+        await firebase.firestore().collection('sheetTracker').add({
+          taskName,
+          projectName,
+          checklistUrl: null,
+          zohoUrl: null,
+          taskId: null,
+          createdByUid: currentUser.uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        console.log('📊 Sheet tracker entry created for manual completion');
+      } catch(sheetError) {
+        console.error('Error creating sheet tracker entry:', sheetError);
+        // Don't show error to user as the main operation succeeded
+      }
     }
     closeModal('excel-modal');
   } catch(e) {
@@ -509,9 +563,26 @@ async function saveManualEntry() {
 }
 
 async function deleteExcelEntry(id) {
+  // Get the entry first to find its taskId
+  const entry = allExcel.find(e => e.id === id);
+
   openConfirm('Delete this completion entry?', async () => {
     try {
       await db.collection('manageExcel').doc(id).delete();
+
+      // Delete linked Sheet Tracker entries using the entry's taskId field
+      if (entry && entry.taskId) {
+        const stSnap = await firebase.firestore().collection('sheetTracker').where('taskId', '==', entry.taskId).get();
+        stSnap.forEach(doc => doc.ref.delete());
+      } else if (entry && entry.taskName) {
+        // Fallback: match by taskName + projectName for manual entries
+        const stSnap = await firebase.firestore().collection('sheetTracker')
+          .where('taskName', '==', entry.taskName)
+          .where('projectName', '==', entry.projectName || '')
+          .get();
+        stSnap.forEach(doc => doc.ref.delete());
+      }
+
       showToast('Entry deleted.', 'success');
     } catch(e) {
       showToast('Error: ' + e.message, 'error');
@@ -1206,6 +1277,15 @@ function updateNavBadge() {
     projectsBadge.style.display = projectsTotal > 0 ? 'block' : 'none';
     console.log('🔄 Projects badge updated to:', projectsTotal, 'badge text content:', projectsBadge.textContent, 'display style:', projectsBadge.style.display);
   }
+  
+  // Update sheet tracker badge
+  const sheetTrackerBadge = document.querySelector('.nav-item[onclick*="sheettracker"] .nav-badge');
+  if (sheetTrackerBadge) {
+    const sheetTrackerTotal = Array.isArray(allSheetTracker) ? allSheetTracker.length : 0;
+    sheetTrackerBadge.textContent = sheetTrackerTotal;
+    sheetTrackerBadge.style.display = sheetTrackerTotal > 0 ? 'block' : 'none';
+    console.log('🔄 Sheet Tracker badge updated to:', sheetTrackerTotal);
+  }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1389,3 +1469,417 @@ window.openTaskCompletionModal = openTaskCompletionModal;
 window.completeTaskWithTime = completeTaskWithTime;
 window.closeTaskCompletionModal = closeTaskCompletionModal;
 window.handleDrop = handleDrop;
+window.renderSheetTracker = renderSheetTracker;
+window.openSheetTrackerModal = openSheetTrackerModal;
+window.saveSheetTrackerEntry = saveSheetTrackerEntry;
+window.deleteSheetTrackerEntry = deleteSheetTrackerEntry;
+window.viewSheetTrackerEntry = viewSheetTrackerEntry;
+window.editSheetTrackerEntry = editSheetTrackerEntry;
+window.exportSheetTrackerToExcel = exportSheetTrackerToExcel;
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 📊 SHEET TRACKER MANAGEMENT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function renderSheetTracker() {
+  const tbody = document.getElementById('sheettracker-body');
+  if (!tbody) return;
+
+  if (!allSheetTracker.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state" style="padding:24px">No sheet tracker entries yet</div></td></tr>`;
+    updateSheetTrackerPagination(0);
+    return;
+  }
+
+  // Sorting
+  const sorted = [...allSheetTracker].sort((a, b) => {
+    let valA, valB;
+    if (sheetTrackerSortField === 'createdAt') {
+      valA = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate() : new Date(a.createdAt)) : new Date(0);
+      valB = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate() : new Date(b.createdAt)) : new Date(0);
+      return sheetTrackerSortDir === 'asc' ? valA - valB : valB - valA;
+    } else {
+      valA = (a[sheetTrackerSortField] || '').toString().toLowerCase();
+      valB = (b[sheetTrackerSortField] || '').toString().toLowerCase();
+      if (valA < valB) return sheetTrackerSortDir === 'asc' ? -1 : 1;
+      if (valA > valB) return sheetTrackerSortDir === 'asc' ? 1 : -1;
+      return 0;
+    }
+  });
+
+  // Pagination
+  const total = sorted.length;
+  const totalPages = Math.ceil(total / sheetTrackerItemsPerPage);
+  if (sheetTrackerCurrentPage > totalPages) sheetTrackerCurrentPage = 1;
+  const start = (sheetTrackerCurrentPage - 1) * sheetTrackerItemsPerPage;
+  const paginated = sorted.slice(start, start + sheetTrackerItemsPerPage);
+
+  updateSheetTrackerPagination(total);
+
+  // Sort arrow helper
+  const arrow = (field) => {
+    if (sheetTrackerSortField !== field) return '<span style="opacity:0.3;">↕</span>';
+    return sheetTrackerSortDir === 'asc' ? '↑' : '↓';
+  };
+
+  // Update sortable headers
+  ['taskName','projectName','createdAt'].forEach(f => {
+    const el = document.getElementById(`st-sort-${f}`);
+    if (el) el.innerHTML = arrow(f);
+  });
+
+  tbody.innerHTML = paginated.map(entry => `
+    <tr>
+      <td style="text-align:center;"><input type="checkbox" class="st-checkbox" value="${entry.id}" onchange="updateSTSelection()"></td>
+      <td>${esc(entry.taskName || '')}</td>
+      <td>${esc(entry.projectName || '')}</td>
+      <td>
+        ${entry.checklistUrl
+          ? `<a href="${entry.checklistUrl}" target="_blank" style="color:var(--blue);text-decoration:underline;word-break:break-all;">${esc(entry.projectName || entry.taskName || 'Open')}</a>`
+          : '<span style="color:var(--text-muted);">—</span>'}
+      </td>
+      <td>
+        ${entry.zohoUrl
+          ? `<a href="${entry.zohoUrl}" target="_blank" style="color:var(--blue);text-decoration:underline;word-break:break-all;">${esc(entry.projectName || entry.taskName || 'Open')}</a>`
+          : '<span style="color:var(--text-muted);">—</span>'}
+      </td>
+      <td>${entry.createdAt ? new Date(entry.createdAt.toDate()).toLocaleDateString() : ''}</td>
+      <td>
+        <div class="action-buttons">
+          <button class="action-btn" onclick="viewSheetTrackerEntry('${entry.id}')" title="View" style="background:var(--cyan);">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+          </button>
+          ${entry.taskId ? `
+          <button class="action-btn" onclick="showTaskHistory('${entry.taskId}')" title="View History" style="background:var(--purple);">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </button>` : ''}
+          <button class="action-btn" onclick="editSheetTrackerEntry('${entry.id}')" title="Edit">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          </button>
+          <button class="action-btn danger" onclick="deleteSheetTrackerEntry('${entry.id}')" title="Delete">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function updateSheetTrackerPagination(total) {
+  const totalPages = Math.ceil(total / sheetTrackerItemsPerPage) || 1;
+  const infoEl = document.getElementById('st-pagination-info');
+  const curEl  = document.getElementById('st-current-page');
+  const totEl  = document.getElementById('st-total-pages');
+  const prevBtn = document.getElementById('prev-st-btn');
+  const nextBtn = document.getElementById('next-st-btn');
+
+  const from = total > 0 ? (sheetTrackerCurrentPage - 1) * sheetTrackerItemsPerPage + 1 : 0;
+  const to   = Math.min(sheetTrackerCurrentPage * sheetTrackerItemsPerPage, total);
+
+  if (infoEl) infoEl.textContent = `Showing ${from}-${to} of ${total}`;
+  if (curEl)  curEl.textContent  = sheetTrackerCurrentPage;
+  if (totEl)  totEl.textContent  = totalPages;
+  if (prevBtn) prevBtn.disabled  = sheetTrackerCurrentPage === 1;
+  if (nextBtn) nextBtn.disabled  = sheetTrackerCurrentPage >= totalPages;
+}
+
+function openSheetTrackerModal(entryId = null) {
+  const modal = document.getElementById('sheettracker-modal');
+  const title = document.getElementById('sheettracker-modal-title');
+  const taskInput = document.getElementById('st-task-name');
+  const projectInput = document.getElementById('st-project-name');
+  const checklistInput = document.getElementById('st-checklist-url');
+  const zohoInput = document.getElementById('st-zoho-url');
+  const errorEl = document.getElementById('sheettracker-modal-error');
+
+  // Reset form
+  taskInput.value = '';
+  projectInput.value = '';
+  checklistInput.value = '';
+  zohoInput.value = '';
+  errorEl.style.display = 'none';
+
+  // Reset readonly & show save button
+  ['st-task-name','st-project-name','st-checklist-url','st-zoho-url'].forEach(id => {
+    document.getElementById(id).readOnly = false;
+  });
+  const saveBtn = modal.querySelector('.modal-footer .btn-primary');
+  if (saveBtn) saveBtn.style.display = 'inline-flex';
+
+  if (entryId) {
+    // Edit mode
+    const entry = allSheetTracker.find(e => e.id === entryId);
+    if (entry) {
+      title.textContent = 'Edit Sheet Tracker Entry';
+      taskInput.value = entry.taskName || '';
+      projectInput.value = entry.projectName || '';
+      checklistInput.value = entry.checklistUrl || '';
+      zohoInput.value = entry.zohoUrl || '';
+      modal.dataset.editId = entryId;
+    }
+  } else {
+    // Add mode
+    title.textContent = 'Add Sheet Tracker Entry';
+    modal.dataset.editId = '';
+  }
+
+  modal.style.display = 'flex';
+  modal.classList.add('open');
+}
+
+async function saveSheetTrackerEntry() {
+  const taskName = document.getElementById('st-task-name').value.trim();
+  const projectName = document.getElementById('st-project-name').value.trim();
+  const checklistUrl = document.getElementById('st-checklist-url').value.trim();
+  const zohoUrl = document.getElementById('st-zoho-url').value.trim();
+  const errorEl = document.getElementById('sheettracker-modal-error');
+  const modal = document.getElementById('sheettracker-modal');
+  const isEdit = modal.dataset.editId;
+
+  errorEl.style.display = 'none';
+
+  if (!taskName || !projectName) {
+    errorEl.textContent = 'Task Name and Project Name are required.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  try {
+    const entryData = {
+      taskName,
+      projectName,
+      checklistUrl: checklistUrl || null,
+      zohoUrl: zohoUrl || null,
+      createdByUid: currentUser?.uid || null,
+      updatedAt: serverTimestamp()
+    };
+
+    if (isEdit) {
+      // Update existing
+      await firebase.firestore().collection('sheetTracker').doc(isEdit).update(entryData);
+      showToast('Sheet tracker entry updated successfully!', 'success');
+    } else {
+      // Create new
+      entryData.createdAt = serverTimestamp();
+      await firebase.firestore().collection('sheetTracker').add(entryData);
+      showToast('Sheet tracker entry added successfully!', 'success');
+    }
+
+    closeModal('sheettracker-modal');
+  } catch (error) {
+    console.error('Error saving sheet tracker entry:', error);
+    errorEl.textContent = 'Failed to save entry. Please try again.';
+    errorEl.style.display = 'block';
+  }
+}
+
+async function deleteSheetTrackerEntry(entryId) {
+  if (!confirm('Are you sure you want to delete this sheet tracker entry?')) return;
+
+  try {
+    await firebase.firestore().collection('sheetTracker').doc(entryId).delete();
+    showToast('Sheet tracker entry deleted successfully!', 'success');
+  } catch (error) {
+    console.error('Error deleting sheet tracker entry:', error);
+    showToast('Failed to delete entry.', 'error');
+  }
+}
+
+function viewSheetTrackerEntry(entryId) {
+  const entry = allSheetTracker.find(e => e.id === entryId);
+  if (!entry) return;
+
+  const modal = document.getElementById('sheettracker-modal');
+  const title = document.getElementById('sheettracker-modal-title');
+
+  title.textContent = 'View Sheet Tracker Entry';
+  document.getElementById('st-task-name').value = entry.taskName || '';
+  document.getElementById('st-project-name').value = entry.projectName || '';
+  document.getElementById('st-checklist-url').value = entry.checklistUrl || '';
+  document.getElementById('st-zoho-url').value = entry.zohoUrl || '';
+
+  // Make readonly
+  ['st-task-name','st-project-name','st-checklist-url','st-zoho-url'].forEach(id => {
+    document.getElementById(id).readOnly = true;
+  });
+
+  // Hide save button
+  const saveBtn = modal.querySelector('.modal-footer .btn-primary');
+  if (saveBtn) saveBtn.style.display = 'none';
+
+  modal.dataset.editId = '';
+  modal.style.display = 'flex';
+  modal.classList.add('open');
+}
+
+function editSheetTrackerEntry(entryId) {
+  openSheetTrackerModal(entryId);
+  // Ensure fields are editable
+  ['st-task-name','st-project-name','st-checklist-url','st-zoho-url'].forEach(id => {
+    document.getElementById(id).readOnly = false;
+  });
+  const saveBtn2 = document.querySelector('#sheettracker-modal .modal-footer .btn-primary');
+  if (saveBtn2) saveBtn2.style.display = 'inline-flex';
+}
+
+function exportSheetTrackerToExcel() {
+  if (!allSheetTracker.length) {
+    showToast('No data to export.', 'warning');
+    return;
+  }
+
+  const data = allSheetTracker.map(entry => ({
+    'Task Name': entry.taskName || '',
+    'Project Name': entry.projectName || '',
+    'Checklist URL': entry.checklistUrl || '',
+    'Zoho URL': entry.zohoUrl || '',
+    'Created At': entry.createdAt ? entry.createdAt.toDate().toLocaleString() : '',
+    'Created By': entry.createdByUid || ''
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet Tracker');
+  XLSX.writeFile(wb, `sheet-tracker-${new Date().toISOString().split('T')[0]}.xlsx`);
+  showToast('Sheet tracker exported to Excel!', 'success');
+}
+
+function triggerSheetTrackerImport() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.xlsx,.xls';
+  input.style.display = 'none';
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (file) importSheetTrackerFromExcel(file);
+  };
+  document.body.appendChild(input);
+  input.click();
+  document.body.removeChild(input);
+}
+
+function importSheetTrackerFromExcel(file) {
+  // Validations same as task/project import
+  const maxSize = 15 * 1024 * 1024;
+  if (file.size > maxSize) {
+    showToast('File size exceeds 15MB limit.', 'error');
+    return;
+  }
+
+  const validTypes = [
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-excel',
+    'application/vnd.ms-excel.sheet.macroEnabled.12'
+  ];
+  if (!validTypes.includes(file.type)) {
+    showToast('Invalid file type. Please upload an Excel file (.xlsx or .xls).', 'error');
+    return;
+  }
+
+  if (file.size === 0) {
+    showToast('The selected file is empty.', 'error');
+    return;
+  }
+
+  showToast('Processing file...', 'info');
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+
+      if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+        showToast('Invalid Excel file format.', 'error');
+        return;
+      }
+
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      if (!firstSheet || !firstSheet['!ref']) {
+        showToast('The Excel file is empty or has no valid data.', 'error');
+        return;
+      }
+
+      const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+      if (!jsonData || jsonData.length === 0) {
+        showToast('No data found in Excel file.', 'error');
+        return;
+      }
+
+      // Validate required column
+      if (!('Task Name' in jsonData[0])) {
+        showToast('Invalid format. Required column: "Task Name".', 'error');
+        return;
+      }
+
+      let imported = 0, skipped = 0;
+      for (const row of jsonData) {
+        const taskName = row['Task Name']?.toString().trim();
+        const projectName = row['Project Name']?.toString().trim() || '';
+
+        if (!taskName) { skipped++; continue; }
+
+        try {
+          await firebase.firestore().collection('sheetTracker').add({
+            taskName,
+            projectName,
+            checklistUrl: row['Checklist URL']?.toString().trim() || null,
+            zohoUrl: row['Zoho URL']?.toString().trim() || null,
+            taskId: null,
+            createdByUid: currentUser?.uid || null,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          imported++;
+        } catch(rowErr) {
+          console.error('Row import error:', rowErr);
+          skipped++;
+        }
+      }
+
+      showToast(`Import done! ${imported} imported, ${skipped} skipped.`, 'success');
+    } catch(err) {
+      console.error('Import error:', err);
+      showToast('Error importing file: ' + err.message, 'error');
+    }
+  };
+  reader.onerror = () => showToast('Failed to read file.', 'error');
+  reader.readAsArrayBuffer(file);
+}
+
+function toggleSelectAllST() {
+  const all = document.getElementById('select-all-st');
+  document.querySelectorAll('.st-checkbox').forEach(cb => cb.checked = all.checked);
+  updateSTSelection();
+}
+
+function updateSTSelection() {
+  const checked = document.querySelectorAll('.st-checkbox:checked');
+  const bar = document.getElementById('st-multi-select-bar');
+  const countEl = document.getElementById('st-selected-count');
+  if (countEl) countEl.textContent = checked.length;
+  if (bar) bar.style.display = checked.length > 0 ? 'flex' : 'none';
+  // Update select-all state
+  const all = document.getElementById('select-all-st');
+  const total = document.querySelectorAll('.st-checkbox').length;
+  if (all) {
+    all.checked = checked.length === total && total > 0;
+    all.indeterminate = checked.length > 0 && checked.length < total;
+  }
+}
+
+async function bulkDeleteSTEntries() {
+  const checked = document.querySelectorAll('.st-checkbox:checked');
+  if (!checked.length) { showToast('No entries selected.', 'error'); return; }
+  openConfirm(`Delete <strong>${checked.length}</strong> Sheet Tracker entries?`, async () => {
+    try {
+      const ids = [...checked].map(cb => cb.value);
+      await Promise.all(ids.map(id => firebase.firestore().collection('sheetTracker').doc(id).delete()));
+      showToast(`${ids.length} entries deleted.`, 'success');
+    } catch(e) { showToast('Error: ' + e.message, 'error'); }
+  });
+}
+
+window.toggleSelectAllST = toggleSelectAllST;
+window.updateSTSelection  = updateSTSelection;
+window.bulkDeleteSTEntries = bulkDeleteSTEntries;

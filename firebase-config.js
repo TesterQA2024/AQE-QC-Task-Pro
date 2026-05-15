@@ -81,6 +81,7 @@ let isSuperAdmin    = false;
 let allTasks        = [];
 let allProjects     = [];
 let allExcel        = [];
+let allSheetTracker = [];
 let allUsers        = [];
 let taskFilter      = 'all';
 let priorityFilter  = '';
@@ -330,59 +331,52 @@ function startListeners() {
 
   const projUnsub = projQuery.onSnapshot(snap => {
     allProjects = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (typeof renderProjects === 'function') {
-      renderProjects();
-    } else {
-      console.error('❌ renderProjects function not found!');
-    }
+    if (typeof renderProjects === 'function') renderProjects();
+    if (typeof renderDashboard === 'function') renderDashboard();
     if (window.updateNavBadge) window.updateNavBadge();
   }, err => console.error('Projects error:', err));
   unsubs.push(projUnsub);
 
-  // MANAGE EXCEL - Super Admin sees all, Users see only their completions
+  // MANAGE EXCEL
   let excelQuery = isSuperAdmin
     ? firebase.firestore().collection('manageExcel').orderBy('completedAt', 'desc')
     : firebase.firestore().collection('manageExcel').where('completedByUid', '==', currentUser.uid);
 
   const excelUnsub = excelQuery.onSnapshot(snap => {
     allExcel = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    console.log('🔄 Excel snapshot received:', snap.docs.length, 'entries');
-    if (typeof renderExcel === 'function') {
-      renderExcel();
-    } else {
-      console.error('❌ renderExcel function not found!');
-    }
+    if (typeof renderExcel === 'function') renderExcel();
     if (window.renderRecentCompletions) window.renderRecentCompletions();
-    if (typeof renderProjects === 'function') {
-      renderProjects(); // Also render projects to show new entries
-    } else {
-      console.error('❌ renderProjects function not found!');
-    }
+    if (typeof renderProjects === 'function') renderProjects();
+    if (typeof renderDashboard === 'function') renderDashboard();
     if (window.updateNavBadge) window.updateNavBadge();
-    console.log('🔄 updateNavBadge called after Excel snapshot');
   }, err => console.error('Excel error:', err));
   unsubs.push(excelUnsub);
 
+  // SHEET TRACKER - Super Admin sees all, Users see only their entries
+  let sheetTrackerQuery = isSuperAdmin
+    ? firebase.firestore().collection('sheetTracker').orderBy('createdAt', 'desc')
+    : firebase.firestore().collection('sheetTracker').where('createdByUid', '==', currentUser.uid).orderBy('createdAt', 'desc');
+
+  const sheetTrackerUnsub = sheetTrackerQuery.onSnapshot(snap => {
+    allSheetTracker = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    console.log('📋 Sheet Tracker updated:', allSheetTracker.length, 'entries');
+    if (typeof renderSheetTracker === 'function') {
+      renderSheetTracker();
+    } else {
+      console.error('❌ renderSheetTracker function not found!');
+    }
+    if (window.updateNavBadge) window.updateNavBadge();
+  }, err => console.error('Sheet Tracker error:', err));
+  unsubs.push(sheetTrackerUnsub);
+
   // USERS (Super Admin only)
   if (isSuperAdmin) {
-    console.log('👑 Setting up users listener for Super Admin');
     const userUnsub = firebase.firestore().collection('users').onSnapshot(snap => {
-      console.log('👥 Users snapshot received:', snap.docs.length);
       allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      console.log('👥 allUsers updated:', allUsers.length);
-      if (typeof renderUsers === 'function') {
-        renderUsers();
-      } else {
-        console.error('❌ renderUsers function not found!');
-      }
-      if (typeof populateAssigneeDropdown === 'function') {
-        populateAssigneeDropdown();
-      } else {
-        console.error('❌ populateAssigneeDropdown function not found!');
-      }
-    }, err => {
-      console.error('❌ Users error:', err);
-    });
+      if (typeof renderUsers === 'function') renderUsers();
+      if (typeof populateAssigneeDropdown === 'function') populateAssigneeDropdown();
+      if (typeof renderDashboard === 'function') renderDashboard();
+    }, err => console.error('❌ Users error:', err));
     unsubs.push(userUnsub);
   }
 }
@@ -459,6 +453,8 @@ function initApp() {
   // Show admin section
   if (isSuperAdmin) {
     document.getElementById('admin-nav-section').style.display = 'block';
+    const usersRow = document.getElementById('stat-users-row');
+    if (usersRow) usersRow.style.display = 'block';
   }
 
   // Update greeting
@@ -467,6 +463,9 @@ function initApp() {
 
   // Start real-time listeners
   startListeners();
+
+  // Render dashboard
+  if (window.renderDashboard) window.renderDashboard();
 }
 
 // Export for use in other modules
@@ -478,6 +477,7 @@ window.db = db;
 window.secondaryApp = secondaryApp;
 window.secondaryAuth = secondaryAuth;
 window.currentUser = currentUser;
+window.initApp = initApp;
 window.currentProfile = currentProfile;
 window.isAdmin = isAdmin;
 window.isSuperAdmin = isSuperAdmin;
@@ -503,17 +503,6 @@ function initGoogleSheetsAPI() {
   }
 }
 
-// Enhanced app initialization
-function initApp() {
-  console.log('🚀 Initializing app...');
-  showLoginScreen();
-  
-  // Initialize Google Sheets API after Firebase is ready
-  setTimeout(() => {
-    initGoogleSheetsAPI();
-  }, 2000);
-}
-
 window.handleLogout = handleLogout;
 window.handleSetup = handleSetup;
 window.startListeners = startListeners;
@@ -521,5 +510,4 @@ window.cleanupListeners = cleanupListeners;
 window.getFriendlyError = getFriendlyError;
 window.showLoginScreen = showLoginScreen;
 window.showSetup = showSetup;
-window.initApp = initApp;
 window.initGoogleSheetsAPI = initGoogleSheetsAPI;

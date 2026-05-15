@@ -111,120 +111,85 @@ function calculateTimeSpentDetailed(createdAt, completedAt) {
 
 // Complete single task
 function completeSingleTask() {
-  const completionNotes = document.getElementById('completion-notes').value.trim();
+  const completionNotes    = document.getElementById('completion-notes').value.trim();
   const completionDateTime = document.getElementById('completion-datetime').value;
-  
+  const bugsFoundEl        = document.getElementById('completion-bugs-found');
+  const bugsDoneEl         = document.getElementById('completion-bugs-done');
+  const errorEl            = document.getElementById('task-completion-error');
+
+  errorEl.style.display = 'none';
+
+  // Validation
   if (!completionDateTime) {
-    showToast('Please select completion date and time', 'error');
-    return;
+    errorEl.textContent = 'Please select completion date and time.';
+    errorEl.style.display = 'block'; return;
   }
-  
+  if (bugsFoundEl.value === '' || bugsFoundEl.value === null) {
+    errorEl.textContent = '🐛 Bugs Found is required.';
+    errorEl.style.display = 'block'; bugsFoundEl.focus(); return;
+  }
+  if (bugsDoneEl.value === '' || bugsDoneEl.value === null) {
+    errorEl.textContent = '✅ Bugs Done is required.';
+    errorEl.style.display = 'block'; bugsDoneEl.focus(); return;
+  }
   if (!currentTaskId) {
-    showToast('No task selected', 'error');
-    return;
+    errorEl.textContent = 'No task selected.'; errorEl.style.display = 'block'; return;
   }
-  
-  // Get the task to calculate time spent
+
   const task = allTasks.find(t => t.id === currentTaskId);
-  if (!task) {
-    showToast('Task not found', 'error');
-    return;
-  }
-  
-  // Calculate time spent automatically with detailed breakdown
-  const timeData = calculateTimeSpentDetailed(task.createdAt, new Date(completionDateTime));
+  if (!task) { showToast('Task not found', 'error'); return; }
+
+  const bugsFound = parseInt(bugsFoundEl.value) || 0;
+  const bugsDone  = parseInt(bugsDoneEl.value)  || 0;
+  const ignored   = parseInt(document.getElementById('completion-ignored')?.value) || 0;
+  const asPerLive = parseInt(document.getElementById('completion-live')?.value)    || 0;
+  const version   = document.getElementById('completion-version')?.value?.trim()  || '';
+
+  const timeData      = calculateTimeSpentDetailed(task.createdAt, new Date(completionDateTime));
   const validTimeSpent = timeData.hours + (timeData.minutes / 60);
-  
+
   const updateData = {
     status: 'complete',
     completedAt: new Date(completionDateTime),
     timeSpentHours: validTimeSpent,
     modificationHistory: firebase.firestore.FieldValue.arrayUnion({
-      field: 'status',
-      oldValue: task.status || 'pending',
-      newValue: 'complete',
-      timestamp: new Date(),
-      modifiedBy: currentUser?.displayName || 'Unknown'
+      field: 'status', oldValue: task.status || 'pending', newValue: 'complete',
+      timestamp: new Date(), modifiedBy: currentUser?.displayName || 'Unknown'
     })
   };
-  
-  // Add completion notes if provided
-  if (completionNotes) {
-    updateData.completionNotes = completionNotes;
-  }
-  
-  // Create Project Details entry
-  const bugsFound = parseInt(document.getElementById('completion-bugs-found')?.value) || 0;
-  const bugsDone = parseInt(document.getElementById('completion-bugs-done')?.value) || 0;
-  const ignored = parseInt(document.getElementById('completion-ignored')?.value) || 0;
-  const asPerLive = parseInt(document.getElementById('completion-live')?.value) || 0;
-  const version = document.getElementById('completion-version')?.value?.trim() || '';
-  
-  // Get task details for Project entry
-  const originalTask = allTasks.find(t => t.id === currentTaskId);
-  if (!originalTask) {
-    console.error('❌ Task not found for Project Details entry');
-    return;
-  }
-  
+  if (completionNotes) updateData.completionNotes = completionNotes;
+
   const projectEntry = {
-    taskName: originalTask.title || '',
-    projectName: originalTask.projectSiteName || '',
-    zohoLink: originalTask.projectZohoUrl || '',
-    version: version,
-    bugsFound: bugsFound,
-    bugsDone: bugsDone,
-    ignored: ignored,
-    asPerLive: asPerLive,
+    taskName: task.title || '',
+    projectName: task.projectSiteName || '',
+    zohoLink: task.projectZohoUrl || '',
+    version, bugsFound, bugsDone, ignored, asPerLive,
     notes: completionNotes || '',
     completedAt: firebase.firestore.FieldValue.serverTimestamp(),
     completedByUid: currentUser.uid,
     completedByName: currentProfile.name,
     addedMethod: 'auto',
     addedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    taskId: currentTaskId // Link to the original task
+    taskId: currentTaskId
   };
-  
-  // Validate required fields before proceeding
-  // 0 values are allowed - proceed with task completion regardless of bug counts
-  
-  // Update task in Firestore
+
   db.collection('tasks').doc(currentTaskId).update(updateData)
     .then(() => {
-      if (validTimeSpent > 0) {
-        showToast(`Task completed! Time spent: ${timeData.display}`, 'success');
-      } else {
-        showToast('Task completed!', 'success');
-      }
+      showToast(validTimeSpent > 0 ? `Task completed! Time: ${timeData.display}` : 'Task completed!', 'success');
       handleCompletionModalClose();
-      
-      // Also update the specific Task in allTasks array to show time spent immediately
-      const TaskIndex = allTasks.findIndex(t => t.id === currentTaskId);
-      if (TaskIndex !== -1) {
-        allTasks[TaskIndex].timeSpentHours = validTimeSpent;
-        allTasks[TaskIndex].timeSpentDisplay = timeData.display;
-        allTasks[TaskIndex].status = 'complete';
-        allTasks[TaskIndex].completedAt = new Date(completionDateTime);
+      const idx = allTasks.findIndex(t => t.id === currentTaskId);
+      if (idx !== -1) {
+        allTasks[idx].timeSpentHours = validTimeSpent;
+        allTasks[idx].timeSpentDisplay = timeData.display;
+        allTasks[idx].status = 'complete';
+        allTasks[idx].completedAt = new Date(completionDateTime);
       }
-      
-      // Force refresh of task list to show updated timeSpentHours
-      setTimeout(() => {
-        if (typeof renderTasks === 'function') {
-          renderTasks();
-        }
-      }, 500);
-    })
-    .then(() => {
-      // Create Project Details entry after task completion
+      setTimeout(() => { if (typeof renderTasks === 'function') renderTasks(); }, 500);
       return db.collection('manageExcel').add(projectEntry);
     })
-    .then(() => {
-      console.log('✅ Project Details entry created successfully');
-      showToast('Task completed successfully! Project Details entry created.', 'success');
-    })
     .catch(error => {
-      console.error('❌ Project Details entry error:', error);
-      showToast('Failed to create Project Details entry', 'error');
+      console.error('❌ Error:', error);
+      showToast('Failed to complete task', 'error');
     });
 }
 
