@@ -79,6 +79,7 @@ let currentProfile  = null;   // Firestore user doc
 let isAdmin         = false;
 let isSuperAdmin    = false;
 let allTasks        = [];
+let allLoadedTasks  = [];
 let allProjects     = [];
 let allExcel        = [];
 let allSheetTracker = [];
@@ -130,7 +131,7 @@ if (isConfigured && auth) {
             
             isAdmin = currentProfile.role === 'superadmin';
             isSuperAdmin = currentProfile.role === 'superadmin';
-            console.log('📋 User profile loaded:', currentProfile.name, 'Status:', currentProfile.status);
+            console.log('📋 User profile loaded:', currentProfile.name, 'Role:', currentProfile.role, 'Status:', currentProfile.status);
             initApp();
           } else {
             // Profile missing - show login
@@ -297,23 +298,35 @@ async function handleSetup() {
 function startListeners() {
   cleanupListeners();
   
-  console.log('🔑 User role check:', isSuperAdmin ? 'Super Admin' : 'Regular User');
+  console.log('🔑 User role check:', isSuperAdmin ? 'Super Admin' : `Role: ${currentProfile?.role}`);
   console.log('👤 Current user:', currentUser?.email);
   console.log('👑 isSuperAdmin value:', isSuperAdmin);
 
-  // TASKS - Super Admin sees all, Users see only their assigned tasks
-  let taskQuery = isSuperAdmin
-    ? firebase.firestore().collection('tasks').orderBy('createdAt', 'desc')
-    : firebase.firestore().collection('tasks').where('assignedToUid', '==', currentUser.uid);
-    
-  console.log('📋 Task query type:', isSuperAdmin ? 'All tasks' : 'My assigned tasks');
+  const taskQuery = firebase.firestore().collection('tasks').orderBy('createdAt', 'desc');
+  console.log('📋 Task query type: all tasks (will filter locally for non-superadmin)');
   console.log('📋 Current user UID:', currentUser?.uid);
-  console.log('📋 Is Super Admin:', isSuperAdmin);
+  console.log('📋 Current role:', currentProfile?.role);
+
+  function filterTasksForCurrentUser(tasks) {
+    if (!currentProfile || currentProfile.role === 'superadmin') return tasks;
+
+    const currentName = currentProfile.name || '';
+    const currentEmail = currentProfile.email || '';
+    const teamMemberIds = allUsers.filter(u => u.managerUid === currentProfile.id).map(u => u.id);
+    const visibleIds = new Set([currentUser.uid, ...teamMemberIds]);
+
+    return tasks.filter(task => {
+      if (visibleIds.has(task.assignedToUid)) return true;
+      if (task.assignedToName === currentName) return true;
+      if (task.assignedToEmail === currentEmail) return true;
+      return false;
+    });
+  }
 
   const taskUnsub = taskQuery.onSnapshot(snap => {
-    allTasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    console.log('📋 Tasks updated:', allTasks.length, 'tasks loaded');
-    console.log('📋 Task details:', allTasks.map(t => ({ id: t.id, title: t.title, assignedToUid: t.assignedToUid, status: t.status })));
+    allLoadedTasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    allTasks = filterTasksForCurrentUser(allLoadedTasks);
+    console.log('📋 Loaded tasks:', allLoadedTasks.length, 'visible tasks:', allTasks.length);
     if (typeof renderTasks === 'function') {
       renderTasks();
     } else {
@@ -324,8 +337,8 @@ function startListeners() {
   }, err => console.error('Tasks error:', err));
   unsubs.push(taskUnsub);
 
-  // PROJECTS - Super Admin sees all, Users see only their imported projects
-  let projQuery = isSuperAdmin
+  // PROJECTS - Super Admin sees all; Team Leads see their own and team imports; Employees see only their own imported projects
+  let projQuery = (isSuperAdmin || currentProfile?.role === 'tl')
     ? firebase.firestore().collection('projects').orderBy('importedAt', 'desc')
     : firebase.firestore().collection('projects').where('importedByUid', '==', currentUser.uid);
 
@@ -337,8 +350,8 @@ function startListeners() {
   }, err => console.error('Projects error:', err));
   unsubs.push(projUnsub);
 
-  // MANAGE EXCEL
-  let excelQuery = isSuperAdmin
+  // MANAGE EXCEL - Super Admin sees all; Team Leads see their own and team completions; Employees see only own completions
+  let excelQuery = (isSuperAdmin || currentProfile?.role === 'tl')
     ? firebase.firestore().collection('manageExcel').orderBy('completedAt', 'desc')
     : firebase.firestore().collection('manageExcel').where('completedByUid', '==', currentUser.uid);
 
@@ -352,8 +365,8 @@ function startListeners() {
   }, err => console.error('Excel error:', err));
   unsubs.push(excelUnsub);
 
-  // SHEET TRACKER - Super Admin sees all, Users see only their entries
-  let sheetTrackerQuery = isSuperAdmin
+  // SHEET TRACKER - Super Admin sees all; Team Leads see their own and team entries; Employees see only their own entries
+  let sheetTrackerQuery = (isSuperAdmin || currentProfile?.role === 'tl')
     ? firebase.firestore().collection('sheetTracker').orderBy('createdAt', 'desc')
     : firebase.firestore().collection('sheetTracker').where('createdByUid', '==', currentUser.uid).orderBy('createdAt', 'desc');
 
@@ -369,10 +382,14 @@ function startListeners() {
   }, err => console.error('Sheet Tracker error:', err));
   unsubs.push(sheetTrackerUnsub);
 
-  // USERS (Super Admin only)
-  if (isSuperAdmin) {
+  const canLoadUsers = ['tl', 'superadmin'].includes(currentProfile.role);
+
+  if (canLoadUsers) {
     const userUnsub = firebase.firestore().collection('users').onSnapshot(snap => {
       allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (currentProfile.role === 'tl') {
+        allTasks = filterTasksForCurrentUser(allLoadedTasks);
+      }
       if (typeof renderUsers === 'function') renderUsers();
       if (typeof populateAssigneeDropdown === 'function') populateAssigneeDropdown();
       if (typeof renderDashboard === 'function') renderDashboard();
@@ -447,14 +464,20 @@ function initApp() {
 
   // Update sidebar
   document.getElementById('sidebar-name').textContent  = currentProfile.name;
-  document.getElementById('sidebar-role').textContent  = isSuperAdmin ? 'Super Admin' : 'User';
+  const userRoleLabel = currentProfile.role === 'superadmin' ? 'Super Admin'
+    : currentProfile.role === 'admin' ? 'Admin'
+    : currentProfile.role === 'tl' ? 'Team Lead'
+    : 'Employee';
+  document.getElementById('sidebar-role').textContent  = userRoleLabel;
   document.getElementById('sidebar-avatar').textContent = currentProfile.name.charAt(0).toUpperCase();
 
-  // Show admin section
-  if (isSuperAdmin) {
+  // Show admin section only for superadmin
+  if (currentProfile.role === 'superadmin') {
     document.getElementById('admin-nav-section').style.display = 'block';
     const usersRow = document.getElementById('stat-users-row');
     if (usersRow) usersRow.style.display = 'block';
+  } else {
+    document.getElementById('admin-nav-section').style.display = 'none';
   }
 
   // Update greeting

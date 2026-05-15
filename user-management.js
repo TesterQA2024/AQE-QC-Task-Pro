@@ -10,21 +10,23 @@
 async function saveUser() {
   console.log('💾 saveUser() called, editingUserId:', editingUserId);
   
-  const nameEl    = document.getElementById('u-name');
-  const emailEl   = document.getElementById('u-email');
-  const roleEl    = document.getElementById('u-role');
+  const nameEl     = document.getElementById('u-name');
+  const emailEl    = document.getElementById('u-email');
+  const roleEl     = document.getElementById('u-role');
+  const managerEl  = document.getElementById('u-manager');
   const passwordEl = document.getElementById('u-password');
-  const errEl     = document.getElementById('user-modal-error');
+  const errEl      = document.getElementById('user-modal-error');
   
-  if (!nameEl || !emailEl || !roleEl || !errEl) {
+  if (!nameEl || !emailEl || !roleEl || !managerEl || !errEl) {
     console.error('❌ User form elements not found');
     return;
   }
   
-  const name     = nameEl.value.trim();
-  const email    = emailEl.value.trim();
-  const role     = roleEl.value;
-  const password = passwordEl ? passwordEl.value : '';
+  const name       = nameEl.value.trim();
+  const email      = emailEl.value.trim();
+  const role       = roleEl.value === 'user' ? 'employee' : roleEl.value;
+  const managerUid = managerEl.value || null;
+  const password   = passwordEl ? passwordEl.value : '';
   
   console.log('📝 User data:', { name, email, role, editingUserId });
   
@@ -65,6 +67,7 @@ async function saveUser() {
         name: name,
         email: email,
         role: role,
+        managerUid: role === 'employee' ? managerUid : null,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       console.log('✅ User updated successfully!');
@@ -80,6 +83,7 @@ async function saveUser() {
         email: email,
         name: name,
         role: role,
+        managerUid: role === 'employee' ? managerUid : null,
         status: 'active', // Default status for new users
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });

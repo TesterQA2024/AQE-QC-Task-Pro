@@ -85,8 +85,19 @@ async function saveTask() {
       }
     }
   } else {
-    // For new tasks, assign to current user if not super admin
-    if (!isSuperAdmin) {
+    // For new tasks, allow Team Lead to assign to self or their employees; employees default to self.
+    if (currentProfile?.role === 'tl' && assignedTo && allUsers.length) {
+      const assignee = allUsers.find(u => u.id === assignedTo || u.name === assignedTo);
+      const teamUserIds = allUsers.filter(u => u.managerUid === currentProfile.id).map(u => u.id);
+      const permittedIds = new Set([currentUser.uid, ...teamUserIds]);
+      if (assignee && permittedIds.has(assignee.id)) {
+        assignedToUid = assignee.id;
+        assignedToName = assignee.name;
+      } else {
+        assignedToUid = currentUser.uid;
+        assignedToName = currentProfile.name;
+      }
+    } else if (!isSuperAdmin) {
       assignedToUid = currentUser.uid;
       assignedToName = currentProfile.name;
     } else if (assignedTo && allUsers.length) {
@@ -1485,14 +1496,15 @@ function renderSheetTracker() {
   const tbody = document.getElementById('sheettracker-body');
   if (!tbody) return;
 
-  if (!allSheetTracker.length) {
+  const visibleSheetTracker = allSheetTracker.filter(entry => canCurrentUserViewItem(entry.createdByUid));
+  if (!visibleSheetTracker.length) {
     tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state" style="padding:24px">No sheet tracker entries yet</div></td></tr>`;
     updateSheetTrackerPagination(0);
     return;
   }
 
   // Sorting
-  const sorted = [...allSheetTracker].sort((a, b) => {
+  const sorted = [...visibleSheetTracker].sort((a, b) => {
     let valA, valB;
     if (sheetTrackerSortField === 'createdAt') {
       valA = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate() : new Date(a.createdAt)) : new Date(0);

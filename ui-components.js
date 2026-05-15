@@ -34,7 +34,12 @@ function renderDashboard() {
   const totalBugsDone  = allProjectEntries.reduce((s, e) => s + (parseInt(e.bugsDone)  || 0), 0);
   const totalIgnored   = allProjectEntries.reduce((s, e) => s + (parseInt(e.ignored)   || 0), 0);
   const totalLive      = allProjectEntries.reduce((s, e) => s + (parseInt(e.asPerLive) || 0), 0);
-  const totalUsers     = allUsers.length;
+  const livePriority   = allTasks.filter(t => t.priority === 'high' && t.status !== 'complete').length;
+  const sheetSyncTotal = Array.isArray(allSheetTracker) ? allSheetTracker.length : 0;
+  const visibleUsers   = getVisibleUsers();
+  const totalUsers     = visibleUsers.length;
+  const activeUsers    = visibleUsers.filter(u => u.status === 'active').length;
+  const inactiveUsers  = visibleUsers.filter(u => u.status === 'inactive').length;
 
   const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   setEl('stat-total',      total);
@@ -47,6 +52,11 @@ function renderDashboard() {
   setEl('stat-ignored',    totalIgnored);
   setEl('stat-live',       totalLive);
   setEl('stat-users',      totalUsers);
+  setEl('stat-users-active', activeUsers);
+  setEl('stat-users-inactive', inactiveUsers);
+  setEl('hero-throughput', total);
+  setEl('hero-live-priority', livePriority);
+  setEl('hero-sheet-sync', sheetSyncTotal);
 
   // Recent Projects (last 5)
   const recentEntries = [
@@ -125,6 +135,86 @@ function openDashboardProjectsModal() {
 }
 window.openDashboardProjectsModal = openDashboardProjectsModal;
 
+function getRoleLabel(role) {
+  switch (role) {
+    case 'employee':
+    case 'user':
+      return 'Employee';
+    case 'tl':
+      return 'Team Lead';
+    case 'admin':
+      return 'Admin (legacy)';
+    case 'superadmin':
+      return 'Super Admin';
+    default:
+      return 'Employee';
+  }
+}
+
+function getVisibleUsers() {
+  if (!currentProfile) return [];
+  const role = currentProfile.role;
+  if (role === 'superadmin') return allUsers;
+  if (role === 'tl') {
+    const teamMembers = allUsers.filter(u => u.managerUid === currentProfile.id);
+    return [currentProfile, ...teamMembers].filter((user, index, arr) => arr.findIndex(item => item.id === user.id) === index);
+  }
+  if (role === 'employee' || role === 'user' || role === 'admin') return [currentProfile];
+  return [currentProfile];
+}
+
+function getTeamMemberIds() {
+  if (!currentProfile || currentProfile.role !== 'tl') return [];
+  return allUsers.filter(u => u.managerUid === currentProfile.id).map(u => u.id);
+}
+
+function canCurrentUserViewItem(uid) {
+  if (!currentProfile) return false;
+  if (currentProfile.role === 'superadmin') return true;
+  if (currentProfile.role === 'tl') {
+    const teamMemberIds = getTeamMemberIds();
+    return uid === currentUser?.uid || teamMemberIds.includes(uid);
+  }
+  return uid === currentUser?.uid;
+}
+
+function openDashboardUsersModal() {
+  const visibleUsers   = getVisibleUsers();
+  const activeUsers    = visibleUsers.filter(u => u.status === 'active');
+  const inactiveUsers  = visibleUsers.filter(u => u.status === 'inactive');
+  const totalUsers     = visibleUsers.length;
+
+  const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setEl('dash-users-total', totalUsers);
+  setEl('dash-users-active', activeUsers.length);
+  setEl('dash-users-inactive', inactiveUsers.length);
+
+  const tbody = document.getElementById('dash-users-body');
+  if (!tbody) return;
+
+  if (!visibleUsers.length) {
+    tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state" style="padding:24px">No users found</div></td></tr>`;
+  } else {
+    const sortedUsers = [...visibleUsers].sort((a, b) => {
+      const ta = a.createdAt ? (a.createdAt.toDate ? a.createdAt.toDate() : new Date(a.createdAt)) : new Date(0);
+      const tb = b.createdAt ? (b.createdAt.toDate ? b.createdAt.toDate() : new Date(b.createdAt)) : new Date(0);
+      return tb - ta;
+    }).slice(0, 8);
+
+    tbody.innerHTML = sortedUsers.map(u => `
+      <tr>
+        <td style="text-align:left;">${esc(u.name || '—')}</td>
+        <td>${getRoleLabel(u.role)}</td>
+        <td><span class="badge badge-${u.status === 'active' ? 'complete' : 'pending'}">${capitalize(u.status || 'inactive')}</span></td>
+        <td>${u.createdAt ? formatDate(u.createdAt) : '—'}</td>
+      </tr>
+    `).join('');
+  }
+
+  openModal('dashboard-users-modal');
+}
+window.openDashboardUsersModal = openDashboardUsersModal;
+
 // TASKS RENDERING
 function renderTasks() {
   const tbody = document.getElementById('tasks-body');
@@ -193,11 +283,14 @@ function renderTasks() {
         ${t.completedAt && t.timeSpentHours && t.timeSpentHours > 0 ? `<span style="font-size:12px;color:var(--red);display:block;margin-top:3px;font-weight:bold;background:var(--red-light, #fee2e2);padding:2px 6px;border-radius:4px;border-left:3px solid var(--red);">🎯 ${t.assignedToName ? `${t.assignedToName} completed in ${t.timeSpentDisplay || t.timeSpentHours + 'h'}` : `Completed in ${t.timeSpentDisplay || t.timeSpentHours + 'h'}`}</span>` : ''}
         ${!t.taskTime && !t.dueDate && (!t.timeSpentHours || t.timeSpentHours === 0) && !t.createdAt && !t.completedAt ? '<span style="color:var(--text-muted);">—</span>' : ''}
       </td>
+      <td>${esc(t.taskType || '—')}</td>
       <td>
         ${t.projectSiteName ? `<div style="font-size:12px;color:var(--blue);font-weight:bold;">${esc(t.projectSiteName)}</div>` : ''}
-        ${t.projectZohoUrl ? `<a href="${t.projectZohoUrl}" target="_blank" style="font-size:11px;color:var(--blue);display:block;margin-top:2px;">🔗 Zoho Link</a>` : ''}
-        ${!t.projectSiteName && !t.projectZohoUrl ? '<span style="color:var(--text-muted);">—</span>' : ''}
+        ${t.projectZohoUrl ? `<a href="${esc(t.projectZohoUrl)}" target="_blank" style="font-size:11px;color:var(--blue);display:block;margin-top:2px;">🔗 Zoho Link</a>` : ''}
+        ${t.checklistUrl ? `<a href="${esc(t.checklistUrl)}" target="_blank" style="font-size:11px;color:var(--blue);display:block;margin-top:2px;">📋 Checklist</a>` : ''}
+        ${!t.projectSiteName && !t.projectZohoUrl && !t.checklistUrl ? '<span style="color:var(--text-muted);">—</span>' : ''}
       </td>
+      <td>${esc(t.userName || '—')}</td>
       <td>${esc(t.assignedToName || 'Unassigned')}</td>
       <td>
         <div class="action-group">
@@ -230,7 +323,8 @@ function renderProjects() {
   const tbody = document.getElementById('projects-body');
   if (!tbody) return;
 
-  let filtered = allProjects;
+  let visibleProjects = allProjects.filter(p => canCurrentUserViewItem(p.importedByUid));
+  let filtered = visibleProjects;
   if (projectFilter !== 'all') filtered = filtered.filter(p => p.status === projectFilter);
   if (searchQuery) filtered = filtered.filter(p => 
     p.projectName.toLowerCase().includes(searchQuery) || 
@@ -242,7 +336,7 @@ function renderProjects() {
   // Entry deletion happens when status changes from complete to non-complete in changeTaskStatus
   const projectEntries = allExcel.filter(e => {
     if (!e.taskId || !e.taskName) return false;
-    return true; // Show all task completion entries
+    return canCurrentUserViewItem(e.completedByUid);
   });
 
   // Combine manual projects and auto-generated project entries
@@ -424,7 +518,8 @@ function renderExcel() {
   const tbody = document.getElementById('excel-body');
   if (!tbody) return;
 
-  let filtered = allExcel;
+  let visibleExcel = allExcel.filter(e => canCurrentUserViewItem(e.completedByUid));
+  let filtered = visibleExcel;
   if (searchQuery) filtered = filtered.filter(e => 
     (e.taskName && e.taskName.toLowerCase().includes(searchQuery)) || 
     (e.projectName && e.projectName.toLowerCase().includes(searchQuery)) ||
@@ -473,9 +568,22 @@ function renderExcel() {
   tbody.innerHTML = html;
 }
 
+// Users Pagination State
+let usersCurrentPage = 1;
+let usersItemsPerPage = 10;
+
 // USERS RENDERING
 function renderUsers() {
-  console.log('👥 renderUsers() called, allUsers:', allUsers.length);
+  if (!isSuperAdmin) {
+    const tbody = document.getElementById('users-body');
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><h3>Access denied</h3><p>User Management is available only to Super Admin.</p></div></td></tr>`;
+    }
+    return;
+  }
+
+  const visibleUsers = getVisibleUsers();
+  console.log('👥 renderUsers() called, visibleUsers:', visibleUsers.length);
   
   const tbody = document.getElementById('users-body');
   if (!tbody) {
@@ -483,16 +591,35 @@ function renderUsers() {
     return;
   }
 
-  if (!allUsers.length) {
-    console.log('📭 No users found');
-    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg><h3>No users yet</h3><p>Create your first user to get started</p></div></td></tr>`;
+  if (!visibleUsers.length) {
+    console.log('📭 No users visible for this account');
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg><h3>No users yet</h3><p>Create your first user to get started</p></div></td></tr>`;
+    
+    const infoEl = document.getElementById('users-pagination-info');
+    if (infoEl) infoEl.textContent = 'Showing 0-0 of 0';
+    updateUsersPagination(0, 0);
     return;
   }
 
-  console.log('👥 Rendering users:', allUsers.map(u => ({ name: u.name, email: u.email, role: u.role })));
+  const totalPages = Math.ceil(visibleUsers.length / usersItemsPerPage);
+  if (usersCurrentPage > totalPages) usersCurrentPage = totalPages || 1;
+  const startIndex = (usersCurrentPage - 1) * usersItemsPerPage;
+  const endIndex = startIndex + usersItemsPerPage;
+  const paginatedUsers = visibleUsers.slice(startIndex, endIndex);
 
-  tbody.innerHTML = allUsers.map(u => {
-    console.log('👤 Rendering user:', u);
+  const infoEl = document.getElementById('users-pagination-info');
+  if (infoEl) {
+    const showingFrom = visibleUsers.length > 0 ? startIndex + 1 : 0;
+    const showingTo = Math.min(endIndex, visibleUsers.length);
+    infoEl.textContent = `Showing ${showingFrom}-${showingTo} of ${visibleUsers.length}`;
+  }
+
+  updateUsersPagination(totalPages, usersCurrentPage);
+
+  console.log('👥 Rendering users:', paginatedUsers.map(u => ({ name: u.name, email: u.email, role: u.role })));
+
+  tbody.innerHTML = paginatedUsers.map(u => {
+    const managerName = u.managerUid ? allUsers.find(manager => manager.id === u.managerUid)?.name || 'Unknown' : '—';
     return `
     <tr>
       <td>
@@ -506,10 +633,11 @@ function renderUsers() {
       </td>
       <td>${esc(u.email || '—')}</td>
       <td>
-        <span class="badge ${u.role === 'superadmin' ? 'badge-complete' : 'badge-ongoing'}">
-          ${u.role === 'superadmin' ? '👑 Super Admin' : '👤 User'}
+        <span class="badge ${u.role === 'superadmin' ? 'badge-complete' : u.role === 'admin' ? 'badge-high' : u.role === 'tl' ? 'badge-medium' : 'badge-ongoing'}">
+          ${getRoleLabel(u.role)}
         </span>
       </td>
+      <td>${esc(managerName)}</td>
       <td>
         <label class="switch" title="Toggle user status">
           <input type="checkbox" ${u.status === 'active' ? 'checked' : ''} 
@@ -536,6 +664,39 @@ function renderUsers() {
   }).join('');
   console.log('✅ Users rendered successfully!');
 }
+
+// Users Pagination Controls
+function updateUsersPagination(totalPages, currentPage) {
+  const prevBtn = document.getElementById('prev-users-btn');
+  const nextBtn = document.getElementById('next-users-btn');
+  const currentPageEl = document.getElementById('users-current-page');
+  const totalPagesEl = document.getElementById('users-total-pages');
+  
+  if (currentPageEl) currentPageEl.textContent = currentPage || 1;
+  if (totalPagesEl) totalPagesEl.textContent = totalPages || 1;
+  if (prevBtn) prevBtn.disabled = currentPage === 1;
+  if (nextBtn) nextBtn.disabled = currentPage >= totalPages || totalPages === 0;
+}
+
+function prevUsersPage() {
+  if (usersCurrentPage > 1) {
+    usersCurrentPage--;
+    renderUsers();
+  }
+}
+
+function nextUsersPage() {
+  const visibleUsers = getVisibleUsers();
+  const totalPages = Math.ceil(visibleUsers.length / usersItemsPerPage);
+  if (usersCurrentPage < totalPages) {
+    usersCurrentPage++;
+    renderUsers();
+  }
+}
+
+// Export pagination functions
+window.prevUsersPage = prevUsersPage;
+window.nextUsersPage = nextUsersPage;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 🎯 MODAL FUNCTIONS
@@ -621,13 +782,14 @@ function openTaskModal(id = null) {
     document.getElementById('t-time').value = '';
   }
 
-  // Assign to dropdown — only Super Admin
+  // Assign to dropdown — Super Admin and Team Lead
   const assignGroup = document.getElementById('assign-to-group');
-  if (isSuperAdmin) {
-    assignGroup.style.display = 'block';
-    populateAssigneeDropdown(task?.assignedToUid);
-  } else {
-    assignGroup.style.display = 'none';
+  const canAssign = isSuperAdmin || currentProfile?.role === 'tl';
+  if (assignGroup) {
+    assignGroup.style.display = canAssign ? 'block' : 'none';
+    if (canAssign) {
+      populateAssigneeDropdown(task?.assignedToUid);
+    }
   }
 
   openModal('task-modal');
@@ -680,8 +842,10 @@ function openUserModal(id = null) {
   const nameEl = document.getElementById('u-name');
   const emailEl = document.getElementById('u-email');
   const roleEl = document.getElementById('u-role');
+  const managerGroup = document.getElementById('manager-group');
+  const managerEl = document.getElementById('u-manager');
   
-  if (!titleEl || !nameEl || !emailEl || !roleEl) {
+  if (!titleEl || !nameEl || !emailEl || !roleEl || !managerGroup || !managerEl) {
     console.error('❌ User modal elements not found');
     return;
   }
@@ -689,8 +853,54 @@ function openUserModal(id = null) {
   titleEl.textContent = user ? 'Edit User' : 'Create User';
   nameEl.value = user?.name || '';
   emailEl.value = user?.email || '';
-  roleEl.value = user?.role || 'user';
-  
+
+  const roleOptions = [
+    { value: 'employee', label: 'Employee' },
+    { value: 'tl', label: 'Team Lead' },
+    { value: 'superadmin', label: 'Super Admin' }
+  ];
+
+  const resolvedRole = user?.role === 'user' ? 'employee' : user?.role;
+  if (resolvedRole === 'admin') {
+    roleOptions.push({ value: 'admin', label: 'Admin (legacy)' });
+  }
+
+  const allowedRoles = currentProfile?.role === 'superadmin'
+    ? ['employee', 'tl', 'superadmin']
+    : ['employee'];
+
+  roleEl.innerHTML = roleOptions
+    .filter(opt => allowedRoles.includes(opt.value) || opt.value === resolvedRole)
+    .map(opt => `<option value="${opt.value}">${opt.label}</option>`)
+    .join('');
+
+  roleEl.value = resolvedRole || 'employee';
+
+  function refreshManagerOptions(selectedManager) {
+    const options = [{ value: '', label: 'None' }];
+    const managers = allUsers.filter(u => u.role === 'tl');
+    managers.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+      .forEach(manager => {
+        options.push({ value: manager.id, label: `${manager.name} (${getRoleLabel(manager.role)})` });
+      });
+    managerEl.innerHTML = options.map(opt => `<option value="${opt.value}"${opt.value === (selectedManager || '') ? ' selected' : ''}>${esc(opt.label)}</option>`).join('');
+  }
+
+  function updateManagerVisibility() {
+    const shouldShow = roleEl.value === 'employee';
+    managerGroup.style.display = shouldShow ? 'block' : 'none';
+    if (shouldShow) {
+      refreshManagerOptions(user?.managerUid);
+    }
+  }
+
+  updateManagerVisibility();
+  roleEl.onchange = updateManagerVisibility;
+
+  if (user?.role === 'employee' && user.managerUid) {
+    refreshManagerOptions(user.managerUid);
+  }
+
   // Handle password field for edit vs create
   const passwordInput = document.getElementById('u-password');
   const passwordGroup = document.getElementById('password-group');
@@ -965,7 +1175,22 @@ function populateAssigneeDropdown(selectedUid = null) {
   const sel = document.getElementById('t-assignee');
   if (!sel) return;
   sel.innerHTML = '<option value="">Select user...</option>';
-  allUsers.forEach(u => {
+
+  const assignees = isSuperAdmin
+    ? allUsers
+    : currentProfile?.role === 'tl'
+      ? allUsers.filter(u => u.id === currentUser?.uid || u.managerUid === currentProfile.id)
+      : allUsers.filter(u => u.id === currentUser?.uid);
+
+  const allowedIds = new Set(assignees.map(u => u.id));
+  const options = [...assignees];
+
+  if (selectedUid && !allowedIds.has(selectedUid)) {
+    const selectedUser = allUsers.find(u => u.id === selectedUid);
+    if (selectedUser) options.push(selectedUser);
+  }
+
+  options.forEach(u => {
     const opt = document.createElement('option');
     opt.value = u.id;
     opt.textContent = u.name + (u.id === currentUser?.uid ? ' (You)' : '');

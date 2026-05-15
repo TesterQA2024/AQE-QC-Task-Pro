@@ -30,41 +30,63 @@ const themes = {
       '--input-bg': '#080E1C'
     }
   },
-  lightPro: {
-    name: 'Clean Pro Light',
-    icon: '☀️',
-    colors: {
-      '--bg': '#f6f8fb',              // softer than pure white
-      '--bg2': '#ffffff',
-      '--bg3': '#f1f5f9',
-      '--bg4': '#e9eef5',
+ lightPro: {
+  name: 'Clean Pro Premium',
+  icon: '✨',
 
-      '--border': 'rgba(15,23,42,0.06)',
-      '--border2': 'rgba(15,23,42,0.1)',
+  colors: {
+    /* Background System */
+    '--bg': '#f4f7fb',
+    '--bg2': '#ffffff',
+    '--bg3': '#eef2f7',
+    '--bg4': '#e2e8f0',
 
-      '--primary': '#2563eb',         // deeper blue (more pro)
-      '--primary-lt': '#3b82f6',
+    /* Stronger Borders (important) */
+    '--border': 'rgba(15,23,42,0.10)',
+    '--border2': 'rgba(15,23,42,0.16)',
 
-      '--accent': '#0ea5e9',          // 🔥 cyan highlight
-      '--accent-soft': '#38bdf8',
+    /* Brand Colors */
+    '--primary': '#2563eb',
+    '--primary-lt': '#4f8cff',
 
-      '--success': '#16a34a',
-      '--warning': '#f59e0b',
-      '--error': '#ef4444',
+    '--accent': '#06b6d4',
+    '--accent-soft': '#67e8f9',
 
-      '--text': '#0f172a',            // strong readability
-      '--text-secondary': '#334155',
-      '--text-muted': '#64748b',
+    '--success': '#16a34a',
+    '--warning': '#f59e0b',
+    '--error': '#ef4444',
 
-      '--card-bg': '#ffffff',
-      '--card-hover': '#f8fafc',
+    /* Typography */
+    '--text': '#0f172a',
+    '--text-secondary': '#334155',
+    '--text-muted': '#64748b',
 
-      '--input-bg': '#ffffff',
+    /* Cards */
+    '--card-bg': 'rgba(255,255,255,0.88)',
+    '--card-hover': '#ffffff',
 
-      '--shadow': '0 8px 24px rgba(15,23,42,0.08)',
-      '--shadow-soft': '0 2px 8px rgba(15,23,42,0.05)'
-    }
-  },
+    /* Inputs */
+    '--input-bg': '#ffffff',
+
+    /* Premium Shadows */
+    '--shadow': `
+      0 10px 30px rgba(15,23,42,0.10),
+      0 2px 8px rgba(15,23,42,0.05)
+    `,
+
+    '--shadow-soft': `
+      0 2px 6px rgba(15,23,42,0.04)
+    `,
+
+    /* Extra Premium Effects */
+    '--glass-border': 'rgba(255,255,255,0.7)',
+    '--focus-ring': '0 0 0 4px rgba(37,99,235,0.15)',
+
+    /* Radius */
+    '--radius': '18px',
+    '--radius-sm': '12px'
+  }
+},
   blue: {
     name: 'Blue Theme',
     icon: '🔵',
